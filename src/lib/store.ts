@@ -17,6 +17,14 @@ import {
   SourceItem,
 } from "@/types/futuregraph";
 import { getInitialDataset, LENS_PRIORS_BY_NODE } from "@/data/ai2027-seed";
+import {
+  AI_2040_ARGUMENTS,
+  AI_2040_EDGES,
+  AI_2040_FORECAST_EVENTS,
+  AI_2040_LENS_PRIORS_BY_NODE,
+  AI_2040_NODE_SOURCES,
+  AI_2040_NODES,
+} from "@/data/ai2040-seed";
 import { createServerAuditReceipt } from "@/lib/audit-receipt";
 import { propagateGraphProbabilities, validateProbability } from "@/lib/probability-engine";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -28,7 +36,16 @@ declare global {
 
 export function getStore(): ScenarioDataset {
   if (!global.__FUTUREGRAPH_STORE__) {
-    global.__FUTUREGRAPH_STORE__ = getInitialDataset();
+    const base = getInitialDataset();
+    Object.assign(LENS_PRIORS_BY_NODE, AI_2040_LENS_PRIORS_BY_NODE);
+    global.__FUTUREGRAPH_STORE__ = {
+      ...base,
+      nodes: [...base.nodes, ...AI_2040_NODES],
+      edges: [...base.edges, ...AI_2040_EDGES],
+      nodeSources: [...base.nodeSources, ...AI_2040_NODE_SOURCES],
+      arguments: [...base.arguments, ...AI_2040_ARGUMENTS],
+      forecastEvents: [...base.forecastEvents, ...AI_2040_FORECAST_EVENTS],
+    };
   }
   return global.__FUTUREGRAPH_STORE__;
 }

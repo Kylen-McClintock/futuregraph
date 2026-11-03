@@ -114,6 +114,14 @@ export function Navbar() {
         p.startsWith("/scenarios/ai-2027/n/"),
     },
     {
+      href: "/scenarios/ai-2040",
+      label: "AI 2040 Map",
+      icon: GitBranch,
+      match: (p: string) =>
+        p === "/scenarios/ai-2040" ||
+        p.startsWith("/scenarios/ai-2040/n/"),
+    },
+    {
       href: "/scenarios/ai-2027/compare",
       label: "Compare Lenses",
       icon: GitCompare,
@@ -183,7 +191,9 @@ export function Navbar() {
                 FutureGraph
               </span>
               <span className="hidden md:inline-block rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300">
-                AI 2027
+                {pathname.startsWith("/scenarios/ai-2040")
+                  ? "AI 2040"
+                  : "AI 2027 & 2040"}
               </span>
             </div>
           </Link>

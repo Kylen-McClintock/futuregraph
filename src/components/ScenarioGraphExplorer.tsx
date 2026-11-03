@@ -29,6 +29,10 @@ import {
 } from "@/types/futuregraph";
 import { propagateGraphProbabilities } from "@/lib/probability-engine";
 import { NodeAuditPanel } from "@/components/NodeAuditPanel";
+import {
+  AI_2040_RIVER_SPECS,
+  AI_2040_TIMELINE_COLS,
+} from "@/data/ai2040-seed";
 
 /**
  * Definition of a node in the continuous Branching Probability River.
@@ -382,6 +386,7 @@ interface ScenarioGraphExplorerProps {
   comments: CommentItem[];
   forecastEvents: ForecastEvent[];
   initialSelectedNodeId?: string | null;
+  initialScenarioSlug?: "ai-2027" | "ai-2040";
 }
 
 function clamp(val: number, min: number, max: number): number {
@@ -389,6 +394,7 @@ function clamp(val: number, min: number, max: number): number {
 }
 
 export function ScenarioGraphExplorer({
+  scenario,
   nodes,
   edges,
   lensPriorsByNode,
@@ -397,7 +403,14 @@ export function ScenarioGraphExplorer({
   comments,
   forecastEvents,
   initialSelectedNodeId = null,
+  initialScenarioSlug,
 }: ScenarioGraphExplorerProps) {
+  const [activeScenarioSlug, setActiveScenarioSlug] = useState<
+    "ai-2027" | "ai-2040"
+  >(
+    initialScenarioSlug ??
+      (scenario.slug === "ai-2040" ? "ai-2040" : "ai-2027")
+  );
   const [selectedLens, setSelectedLens] =
     useState<ForecastLens>("demo_hypothesis");
   const [thicknessMode, setThicknessMode] = useState<"overall" | "conditional">(
@@ -412,6 +425,14 @@ export function ScenarioGraphExplorer({
     Record<string, number>
   >({});
   const [outcomesPanelOpen, setOutcomesPanelOpen] = useState(true);
+
+  const activeRiverSpecs = useMemo(
+    () =>
+      activeScenarioSlug === "ai-2040"
+        ? AI_2040_RIVER_SPECS
+        : RIVER_TREE_SPECS,
+    [activeScenarioSlug]
+  );
 
   // Light / Dark Mode state synced with Navbar & documentElement
   const [isLightMode, setIsLightMode] = useState(false);
@@ -518,11 +539,45 @@ export function ScenarioGraphExplorer({
 
   // Lens shifts baseline conditional splits slightly so switching lenses is immediately visible
   const lensShiftMultiplier = useMemo(() => {
-    if (selectedLens === "ai_claude") return { sc: 0.56, race: 0.42, slow: 0.46 };
-    if (selectedLens === "ai_gemini") return { sc: 0.72, race: 0.55, slow: 0.33 };
-    if (selectedLens === "ai_gpt") return { sc: 0.65, race: 0.49, slow: 0.39 };
-    if (selectedLens === "community") return { sc: 0.62, race: 0.46, slow: 0.41 };
-    return { sc: 0.68, race: 0.52, slow: 0.36 };
+    if (selectedLens === "ai_claude")
+      return {
+        sc: 0.56,
+        race: 0.42,
+        slow: 0.46,
+        plana2040: 0.41,
+        plancd2040: 0.29,
+      };
+    if (selectedLens === "ai_gemini")
+      return {
+        sc: 0.72,
+        race: 0.55,
+        slow: 0.33,
+        plana2040: 0.31,
+        plancd2040: 0.4,
+      };
+    if (selectedLens === "ai_gpt")
+      return {
+        sc: 0.65,
+        race: 0.49,
+        slow: 0.39,
+        plana2040: 0.36,
+        plancd2040: 0.34,
+      };
+    if (selectedLens === "community")
+      return {
+        sc: 0.62,
+        race: 0.46,
+        slow: 0.41,
+        plana2040: 0.38,
+        plancd2040: 0.32,
+      };
+    return {
+      sc: 0.68,
+      race: 0.52,
+      slow: 0.36,
+      plana2040: 0.34,
+      plancd2040: 0.36,
+    };
   }, [selectedLens]);
 
   /**
@@ -531,7 +586,7 @@ export function ScenarioGraphExplorer({
    */
   const computedRiverNodes: ComputedRiverNode[] = useMemo(() => {
     const childrenByParent = new Map<string, RiverBranchNodeSpec[]>();
-    for (const spec of RIVER_TREE_SPECS) {
+    for (const spec of activeRiverSpecs) {
       if (!spec.parentId) continue;
       const list = childrenByParent.get(spec.parentId) || [];
       list.push(spec);
@@ -539,13 +594,18 @@ export function ScenarioGraphExplorer({
     }
 
     const condMap = new Map<string, number>();
-    condMap.set("river-2025-start", 1.0);
+    for (const spec of activeRiverSpecs) {
+      if (!spec.parentId) {
+        condMap.set(spec.id, 1.0);
+      }
+    }
 
     for (const [, siblings] of childrenByParent.entries()) {
       const rawProbs = siblings.map((s) => {
         if (conditionalOverrides[s.id] !== undefined) {
           return conditionalOverrides[s.id];
         }
+        // AI 2027 lens shifts
         if (s.id === "river-2027-mar-sc") return lensShiftMultiplier.sc;
         if (s.id === "river-2027-plateau") return 1 - lensShiftMultiplier.sc;
         if (s.id === "river-race-1-continue") return lensShiftMultiplier.race;
@@ -555,6 +615,11 @@ export function ScenarioGraphExplorer({
             0.04,
             1 - lensShiftMultiplier.race - lensShiftMultiplier.slow
           );
+        // AI 2040 lens shifts
+        if (s.id === "r2040-plana-2030-deal")
+          return lensShiftMultiplier.plana2040;
+        if (s.id === "r2040-plancd-race")
+          return lensShiftMultiplier.plancd2040;
         return s.defaultConditionalProb;
       });
 
@@ -565,7 +630,7 @@ export function ScenarioGraphExplorer({
     }
 
     const overallMap = new Map<string, number>();
-    for (const spec of RIVER_TREE_SPECS) {
+    for (const spec of activeRiverSpecs) {
       if (!spec.parentId) {
         overallMap.set(spec.id, 1.0);
       } else {
@@ -575,13 +640,13 @@ export function ScenarioGraphExplorer({
       }
     }
 
-    return RIVER_TREE_SPECS.map((spec) => ({
+    return activeRiverSpecs.map((spec) => ({
       ...spec,
       conditionalProb: condMap.get(spec.id) ?? spec.defaultConditionalProb,
       overallProb: overallMap.get(spec.id) ?? spec.defaultConditionalProb,
       isTerminalOutcome: !childrenByParent.has(spec.id),
     }));
-  }, [conditionalOverrides, lensShiftMultiplier]);
+  }, [activeRiverSpecs, conditionalOverrides, lensShiftMultiplier]);
 
   const riverNodeMap = useMemo(
     () => new Map(computedRiverNodes.map((n) => [n.id, n])),
@@ -1158,14 +1223,52 @@ export function ScenarioGraphExplorer({
       {/* Clean Single-Row Subbar */}
       <div className="shrink-0 border-b border-slate-800/80 bg-slate-950/95 px-4 py-1.5">
         <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <GitBranch className="h-4 w-4 text-amber-400" />
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Instant Scenario Switcher Pill */}
+            <div className="inline-flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveScenarioSlug("ai-2027");
+                  setSelectedNodeId(null);
+                  setConditionalOverrides({});
+                  animateCameraTo(FULL_VIEWBOX);
+                }}
+                className={`rounded-md px-2.5 py-0.5 font-semibold transition-colors ${
+                  activeScenarioSlug === "ai-2027"
+                    ? "bg-amber-500 text-slate-950 font-extrabold"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                AI 2027 (Fast Takeoff)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveScenarioSlug("ai-2040");
+                  setSelectedNodeId(null);
+                  setConditionalOverrides({});
+                  animateCameraTo(FULL_VIEWBOX);
+                }}
+                className={`rounded-md px-2.5 py-0.5 font-semibold transition-colors ${
+                  activeScenarioSlug === "ai-2040"
+                    ? "bg-emerald-500 text-slate-950 font-extrabold"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                AI 2040 (Plan A vs. Plans B–S)
+              </button>
+            </div>
+
+            <div className="hidden md:flex items-center gap-1.5">
+              <GitBranch className="h-3.5 w-3.5 text-amber-400" />
               <h1 className="text-xs sm:text-sm font-bold text-white">
-                AI 2027 Branching Probability River
+                {activeScenarioSlug === "ai-2040"
+                  ? "AI 2040: Plan A & The 2029 Crossroads"
+                  : "AI 2027 Branching Probability River"}
               </h1>
             </div>
-            <span className="hidden xl:inline text-xs text-slate-400">
+            <span className="hidden 2xl:inline text-xs text-slate-400">
               Line width & label size scale with probability • Click any node or
               end result to inspect its causal path & math
             </span>
@@ -1210,7 +1313,10 @@ export function ScenarioGraphExplorer({
                 className="bg-transparent text-xs font-semibold text-amber-300 focus:outline-none"
               >
                 <option value="demo_hypothesis" className="bg-slate-900">
-                  Lens: AI 2027 Baseline
+                  Lens:{" "}
+                  {activeScenarioSlug === "ai-2040"
+                    ? "AI 2040 Baseline"
+                    : "AI 2027 Baseline"}
                 </option>
                 <option value="community" className="bg-slate-900">
                   Lens: Human Community
@@ -1549,18 +1655,21 @@ export function ScenarioGraphExplorer({
 
               <g>
                 {/* Subtle Year Timeline Columns in Background */}
-                {[
-                  { x: 85, year: "2025" },
-                  { x: 275, year: "2026" },
-                  { x: 475, year: "EARLY 2027" },
-                  { x: 675, year: "MID 2027" },
-                  { x: 865, year: "SEP 2027" },
-                  { x: 1015, year: "OCT 2027 FORK" },
-                  { x: 1170, year: "NOV 2027" },
-                  { x: 1305, year: "2028" },
-                  { x: 1425, year: "2029" },
-                  { x: 1525, year: "2030" },
-                ].map((col) => (
+                {(activeScenarioSlug === "ai-2040"
+                  ? AI_2040_TIMELINE_COLS
+                  : [
+                      { x: 85, year: "2025" },
+                      { x: 275, year: "2026" },
+                      { x: 475, year: "EARLY 2027" },
+                      { x: 675, year: "MID 2027" },
+                      { x: 865, year: "SEP 2027" },
+                      { x: 1015, year: "OCT 2027 FORK" },
+                      { x: 1170, year: "NOV 2027" },
+                      { x: 1305, year: "2028" },
+                      { x: 1425, year: "2029" },
+                      { x: 1525, year: "2030" },
+                    ]
+                ).map((col) => (
                   <g key={col.year}>
                     <line
                       x1={col.x}
@@ -1587,7 +1696,7 @@ export function ScenarioGraphExplorer({
 
                 {/* Major Outcome Region Labels on the Right */}
                 <text
-                  x={1350}
+                  x={1240}
                   y={52}
                   textAnchor="middle"
                   fill={isLightMode ? "#be123c" : "#fb7185"}
@@ -1595,10 +1704,12 @@ export function ScenarioGraphExplorer({
                   fontWeight={800}
                   letterSpacing="0.08em"
                 >
-                  RACE PATH (UNCHECKED SCALING → AI TAKEOVER)
+                  {activeScenarioSlug === "ai-2040"
+                    ? "PLAN C/D & B: UNCONSTRAINED RACE OR CONTAINMENT → LOSS OF CONTROL / COLD WAR"
+                    : "RACE PATH (UNCHECKED SCALING → AI TAKEOVER)"}
                 </text>
                 <text
-                  x={1350}
+                  x={1240}
                   y={648}
                   textAnchor="middle"
                   fill={isLightMode ? "#047857" : "#34d399"}
@@ -1606,7 +1717,9 @@ export function ScenarioGraphExplorer({
                   fontWeight={800}
                   letterSpacing="0.08em"
                 >
-                  SLOWDOWN PATH (FREEZE + ALIGNED AI + VERIFIED TREATY)
+                  {activeScenarioSlug === "ai-2040"
+                    ? "PLAN A: VERIFIED SLOWDOWN + 2035 EXPERT PAUSE → SAFE 2040 ASI"
+                    : "SLOWDOWN PATH (FREEZE + ALIGNED AI + VERIFIED TREATY)"}
                 </text>
 
                 {/* 1. Render Continuous Weighted Probability River Branches with True Sankey Split Offsets */}
@@ -1645,9 +1758,11 @@ export function ScenarioGraphExplorer({
 
                   const color = trackColors[node.track].stroke;
                   const strokePaint =
-                    node.id === "river-race-1-continue"
+                    node.id === "river-race-1-continue" ||
+                    node.id === "r2040-plancd-race"
                       ? "url(#grad-race)"
-                      : node.id === "river-slow-1-freeze"
+                      : node.id === "river-slow-1-freeze" ||
+                        node.id === "r2040-plana-2030-deal"
                       ? "url(#grad-slowdown)"
                       : node.track === "spine"
                       ? "url(#grad-spine)"
@@ -1754,7 +1869,9 @@ export function ScenarioGraphExplorer({
                     selectedNeighborhood?.nextNodes.some(
                       (nx) => nx.id === node.id
                     ) ?? false;
-                  const isForkHub = node.id === "river-2027-oct-fork";
+                  const isForkHub =
+                    node.id === "river-2027-oct-fork" ||
+                    node.id === "r2040-2029-crossroads";
                   const isSideBranch = node.track === "offramp";
 
                   const overallPct = Math.round(node.overallProb * 100);

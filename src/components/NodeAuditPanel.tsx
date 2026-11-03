@@ -258,6 +258,7 @@ export function NodeAuditPanel({
       ? "bg-sky-500/15 text-sky-300 border-sky-500/30"
       : "bg-violet-500/15 text-violet-300 border-violet-500/30";
 
+  const isAI2040 = node.scenarioId === "scen-ai-2040";
   const provenanceLabel =
     node.provenanceType === "observed_history"
       ? "Observed Reality (as of Nov 2026)"
@@ -266,6 +267,8 @@ export function NodeAuditPanel({
       ? `Documented Supplement Prob (${(node.question.authorDocumentedProb * 100).toFixed(1)}%)`
       : node.provenanceType === "operationalized_question"
       ? "Operationalized Benchmark Question"
+      : isAI2040
+      ? "Original AI 2040 Scenario Milestone"
       : "Original AI 2027 Scenario Milestone";
 
   return (
@@ -296,7 +299,7 @@ export function NodeAuditPanel({
           <div className="flex items-center gap-1.5">
             {!standalone && (
               <Link
-                href={`/scenarios/ai-2027/n/${node.id}`}
+                href={`/scenarios/${isAI2040 ? "ai-2040" : "ai-2027"}/n/${node.id}`}
                 className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-xs text-slate-200 hover:border-amber-500/50 hover:text-amber-300"
                 title="Open standalone deep-link page"
               >
