@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUp,
+  ChevronDown,
+  ChevronUp,
   Eye,
   Focus,
   GitBranch,
@@ -13,6 +15,7 @@ import {
   Plus,
   RotateCcw,
   Sliders,
+  Trophy,
 } from "lucide-react";
 import {
   ArgumentItem,
@@ -88,7 +91,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     track: "offramp",
     defaultConditionalProb: 0.12,
     x: 275,
-    y: 540,
+    y: 545,
     labelPosition: "bottom",
   },
 
@@ -114,7 +117,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     track: "offramp",
     defaultConditionalProb: 0.32,
     x: 475,
-    y: 500,
+    y: 505,
     labelPosition: "bottom",
   },
 
@@ -358,6 +361,8 @@ interface ComputedRiverNode extends RiverBranchNodeSpec {
   conditionalProb: number;
   /** Overall cumulative probability from 2025 start: P(parent overall) * P(this | parent) */
   overallProb: number;
+  /** True if this node is a terminal leaf outcome (no outgoing children) */
+  isTerminalOutcome: boolean;
 }
 
 interface ViewBoxCamera {
@@ -406,6 +411,7 @@ export function ScenarioGraphExplorer({
   const [conditionalOverrides, setConditionalOverrides] = useState<
     Record<string, number>
   >({});
+  const [outcomesPanelOpen, setOutcomesPanelOpen] = useState(true);
 
   // Light / Dark Mode state synced with Navbar & documentElement
   const [isLightMode, setIsLightMode] = useState(false);
@@ -483,7 +489,6 @@ export function ScenarioGraphExplorer({
 
     const tick = (now: number) => {
       const t = Math.min(1, (now - startTime) / duration);
-      // Ease out cubic
       const ease = 1 - Math.pow(1 - t, 3);
       const next: ViewBoxCamera = {
         x: start.x + (target.x - start.x) * ease,
@@ -574,6 +579,7 @@ export function ScenarioGraphExplorer({
       ...spec,
       conditionalProb: condMap.get(spec.id) ?? spec.defaultConditionalProb,
       overallProb: overallMap.get(spec.id) ?? spec.defaultConditionalProb,
+      isTerminalOutcome: !childrenByParent.has(spec.id),
     }));
   }, [conditionalOverrides, lensShiftMultiplier]);
 
@@ -582,13 +588,33 @@ export function ScenarioGraphExplorer({
     [computedRiverNodes]
   );
 
-  // Selected river node and its immediate neighborhood (Previous node, Selected node, Next nodes)
+  // All terminal leaf outcomes ranked from highest to lowest probability (always sums to 100%)
+  const rankedTerminalOutcomes = useMemo(
+    () =>
+      computedRiverNodes
+        .filter((n) => n.isTerminalOutcome)
+        .sort((a, b) => b.overallProb - a.overallProb),
+    [computedRiverNodes]
+  );
+
+  // Selected river node and its immediate neighborhood + full ancestor causal chain
   const selectedRiverNodeForDrawer = useMemo(
     () =>
       computedRiverNodes.find((n) => n.canonicalNodeId === selectedNodeId) ||
       null,
     [computedRiverNodes, selectedNodeId]
   );
+
+  const selectedCausalChain = useMemo(() => {
+    if (!selectedRiverNodeForDrawer) return [];
+    const chain: ComputedRiverNode[] = [];
+    let curr: ComputedRiverNode | undefined = selectedRiverNodeForDrawer;
+    while (curr) {
+      chain.unshift(curr);
+      curr = curr.parentId ? riverNodeMap.get(curr.parentId) : undefined;
+    }
+    return chain;
+  }, [selectedRiverNodeForDrawer, riverNodeMap]);
 
   const selectedNeighborhood = useMemo(() => {
     if (!selectedRiverNodeForDrawer) return null;
@@ -606,7 +632,6 @@ export function ScenarioGraphExplorer({
       focusList.push(...nextNodes);
     }
 
-    // If root node (no parent), also include grandchildren so 3 columns are visible
     if (!prevNode && nextNodes.length > 0) {
       for (const child of nextNodes) {
         const grandChildren = computedRiverNodes.filter(
@@ -616,7 +641,6 @@ export function ScenarioGraphExplorer({
       }
     }
 
-    // If leaf node (no children), also include siblings & grandparent so previous -> fork -> current is framed
     if (nextNodes.length === 0 && prevNode) {
       const siblings = computedRiverNodes.filter(
         (n) => n.parentId === prevNode.id && n.id !== target.id
@@ -634,9 +658,9 @@ export function ScenarioGraphExplorer({
     const maxY = Math.max(...focusList.map((n) => n.y));
 
     const padX = 145;
-    const padY = 110;
+    const padY = 115;
     const rawW = Math.max(520, maxX - minX + padX * 2);
-    const rawH = Math.max(300, maxY - minY + padY * 2);
+    const rawH = Math.max(310, maxY - minY + padY * 2);
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
 
@@ -725,7 +749,10 @@ export function ScenarioGraphExplorer({
     if (!el) return;
 
     const onWheel = (e: WheelEvent) => {
-      // Prevent browser page zoom or page scroll while interacting with the diagram
+      // Do not intercept wheel if scrolling inside the Projected Outcomes overlay card
+      if ((e.target as HTMLElement).closest("[data-outcomes-panel]")) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
 
@@ -733,18 +760,15 @@ export function ScenarioGraphExplorer({
       const relX = clamp((e.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
       const relY = clamp((e.clientY - rect.top) / Math.max(1, rect.height), 0, 1);
 
-      // Trackpad pinch sets e.ctrlKey or e.metaKey; mouse wheel or vertical scroll also zooms smoothly
       if (e.ctrlKey || e.metaKey || Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
         const sensitivity = e.ctrlKey || e.metaKey ? 0.0085 : 0.0022;
         const factor = Math.exp(e.deltaY * sensitivity);
         zoomAtPoint(factor, relX, relY);
       } else {
-        // Horizontal 2-finger trackpad glide pans the diagram
         panByPixels(-e.deltaX, -e.deltaY);
       }
     };
 
-    // Safari trackpad / iOS gesture events
     let lastGestureScale = 1;
     const onGestureStart = (e: Event) => {
       e.preventDefault();
@@ -794,6 +818,9 @@ export function ScenarioGraphExplorer({
     if (!el) return;
 
     const onTouchStart = (e: TouchEvent) => {
+      if ((e.target as HTMLElement).closest("[data-outcomes-panel]")) {
+        return;
+      }
       if (e.touches.length === 2) {
         e.preventDefault();
         const t0 = e.touches[0];
@@ -828,6 +855,9 @@ export function ScenarioGraphExplorer({
     };
 
     const onTouchMove = (e: TouchEvent) => {
+      if ((e.target as HTMLElement).closest("[data-outcomes-panel]")) {
+        return;
+      }
       const state = touchStateRef.current;
       if (e.touches.length === 2) {
         e.preventDefault();
@@ -968,12 +998,39 @@ export function ScenarioGraphExplorer({
         }
       }
     }
-    // Also ensure all nodes in selectedNeighborhood are highlighted when a node is selected
-    if (selectedNeighborhood) {
-      selectedNeighborhood.focusIds.forEach((id) => set.add(id));
-    }
     return set;
-  }, [activeRiverNode, riverNodeMap, computedRiverNodes, selectedNeighborhood]);
+  }, [activeRiverNode, riverNodeMap, computedRiverNodes]);
+
+  // Compute True Sankey Vertical Start Offsets so child branches physically slice out of their parent trunk
+  const sankeyStartYByNodeId = useMemo(() => {
+    const map = new Map<string, number>();
+    const childrenByParent = new Map<string, ComputedRiverNode[]>();
+    for (const n of computedRiverNodes) {
+      if (!n.parentId) continue;
+      const list = childrenByParent.get(n.parentId) || [];
+      list.push(n);
+      childrenByParent.set(n.parentId, list);
+    }
+
+    for (const [parentId, children] of childrenByParent.entries()) {
+      const parent = riverNodeMap.get(parentId);
+      if (!parent) continue;
+      const sorted = [...children].sort((a, b) => a.y - b.y);
+      const widths = sorted.map((c) => {
+        const wProb =
+          thicknessMode === "overall" ? c.overallProb : c.conditionalProb;
+        return Math.max(2.5, Number((wProb * 34).toFixed(1)));
+      });
+      const totalWidth = widths.reduce((a, b) => a + b, 0);
+      let cursorY = parent.y - totalWidth / 2;
+      sorted.forEach((c, idx) => {
+        const w = widths[idx];
+        map.set(c.id, cursorY + w / 2);
+        cursorY += w;
+      });
+    }
+    return map;
+  }, [computedRiverNodes, riverNodeMap, thicknessMode]);
 
   // Underlying DAG propagation for the audit drawer
   const basePriors = useMemo(() => {
@@ -1026,31 +1083,31 @@ export function ScenarioGraphExplorer({
               stroke: "#d97706",
               nodeFill: "#f59e0b",
               text: "#b45309",
-              badgeBg: "rgba(217, 119, 6, 0.15)",
+              barClass: "bg-amber-500",
             },
             race: {
               stroke: "#e11d48",
               nodeFill: "#f43f5e",
               text: "#be123c",
-              badgeBg: "rgba(225, 29, 72, 0.15)",
+              barClass: "bg-rose-500",
             },
             slowdown: {
               stroke: "#059669",
               nodeFill: "#10b981",
               text: "#047857",
-              badgeBg: "rgba(5, 150, 105, 0.15)",
+              barClass: "bg-emerald-500",
             },
             hybrid: {
               stroke: "#0284c7",
               nodeFill: "#0ea5e9",
               text: "#0369a1",
-              badgeBg: "rgba(2, 132, 199, 0.15)",
+              barClass: "bg-sky-500",
             },
             offramp: {
               stroke: "#64748b",
               nodeFill: "#64748b",
               text: "#475569",
-              badgeBg: "rgba(100, 116, 139, 0.15)",
+              barClass: "bg-slate-500",
             },
           }
         : {
@@ -1058,31 +1115,31 @@ export function ScenarioGraphExplorer({
               stroke: "#f59e0b",
               nodeFill: "#fbbf24",
               text: "#fde68a",
-              badgeBg: "rgba(245, 158, 11, 0.16)",
+              barClass: "bg-amber-400",
             },
             race: {
               stroke: "#f43f5e",
               nodeFill: "#fb7185",
               text: "#fecdd3",
-              badgeBg: "rgba(244, 63, 94, 0.18)",
+              barClass: "bg-rose-400",
             },
             slowdown: {
               stroke: "#10b981",
               nodeFill: "#34d399",
               text: "#a7f3d0",
-              badgeBg: "rgba(16, 185, 129, 0.18)",
+              barClass: "bg-emerald-400",
             },
             hybrid: {
               stroke: "#38bdf8",
               nodeFill: "#7dd3fc",
               text: "#bae6fd",
-              badgeBg: "rgba(56, 189, 248, 0.16)",
+              barClass: "bg-sky-400",
             },
             offramp: {
               stroke: "#64748b",
               nodeFill: "#94a3b8",
-              text: "#cbd5e1",
-              badgeBg: "rgba(100, 116, 139, 0.18)",
+              text: "#94a3b8",
+              barClass: "bg-slate-400",
             },
           },
     [isLightMode]
@@ -1092,49 +1149,35 @@ export function ScenarioGraphExplorer({
 
   return (
     <div
-      className={`flex flex-col h-[calc(100dvh-57px)] overflow-hidden select-none ${
+      className={`flex flex-col h-[calc(100dvh-50px)] overflow-hidden select-none ${
         isLightMode
           ? "bg-[#f8f6f0] text-slate-900"
           : "bg-[#070b12] text-slate-100"
       }`}
     >
-      {/* Slim Header Bar */}
-      <div className="shrink-0 border-b border-slate-800/80 bg-slate-950/95 px-4 py-2">
-        <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-3">
-          {/* Left: Title + Clear Explanation of the 2 Probability Numbers */}
-          <div className="flex flex-wrap items-center gap-4">
+      {/* Clean Single-Row Subbar */}
+      <div className="shrink-0 border-b border-slate-800/80 bg-slate-950/95 px-4 py-1.5">
+        <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <GitBranch className="h-4 w-4 text-amber-400" />
-              <h1 className="text-sm sm:text-base font-bold text-white">
-                AI 2027 Branching Probability Tree
+              <h1 className="text-xs sm:text-sm font-bold text-white">
+                AI 2027 Branching Probability River
               </h1>
             </div>
-
-            {/* Legend explaining Overall vs Conditional Split */}
-            <div className="hidden lg:flex items-center gap-3 rounded-full border border-slate-800 bg-slate-900/90 px-3.5 py-1 text-xs">
-              <span className="flex items-center gap-1.5 text-amber-300 font-semibold">
-                <span className="h-2 w-2 rounded-full bg-amber-400" />
-                <span>Node % = Overall Probability (from 2025)</span>
-              </span>
-              <span className="text-slate-500">|</span>
-              <span className="text-slate-300">
-                Branch Label ={" "}
-                <strong className="text-white">
-                  Chance Given Previous Node
-                </strong>{" "}
-                (forks always sum to 100%)
-              </span>
-            </div>
+            <span className="hidden xl:inline text-xs text-slate-400">
+              Line width & label size scale with probability • Click any node or
+              end result to inspect its causal path & math
+            </span>
           </div>
 
-          {/* Right: Controls */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Toggle River Thickness Mode */}
             <div className="inline-flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5 text-xs">
               <button
                 type="button"
                 onClick={() => setThicknessMode("overall")}
-                className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+                className={`rounded-md px-2 py-0.5 font-medium transition-colors ${
                   thicknessMode === "overall"
                     ? "bg-amber-500 text-slate-950 font-bold"
                     : "text-slate-400 hover:text-white"
@@ -1145,7 +1188,7 @@ export function ScenarioGraphExplorer({
               <button
                 type="button"
                 onClick={() => setThicknessMode("conditional")}
-                className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+                className={`rounded-md px-2 py-0.5 font-medium transition-colors ${
                   thicknessMode === "conditional"
                     ? "bg-amber-500 text-slate-950 font-bold"
                     : "text-slate-400 hover:text-white"
@@ -1156,7 +1199,7 @@ export function ScenarioGraphExplorer({
             </div>
 
             {/* Lens Selector */}
-            <div className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1">
+            <div className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-0.5">
               <Eye className="h-3.5 w-3.5 text-amber-400" />
               <select
                 aria-label="Select Forecast Lens"
@@ -1188,7 +1231,7 @@ export function ScenarioGraphExplorer({
               <button
                 type="button"
                 onClick={() => setConditionalOverrides({})}
-                className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-300 hover:bg-amber-500/25"
+                className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/25"
               >
                 <RotateCcw className="h-3 w-3" />
                 Reset Splits
@@ -1226,11 +1269,7 @@ export function ScenarioGraphExplorer({
         </div>
       </div>
 
-      {/* Main Split Area:
-          - On mobile (< lg): vertical scrollable container so when a node is clicked,
-            the zoomed-in diagram stays at the top and remains visible whenever the user scrolls back up!
-          - On desktop (>= lg): side-by-side split where the diagram zooms into the clicked branch neighborhood
-            on the left and the detailed text opens on the right. */}
+      {/* Main Split Area */}
       <div
         ref={mobileSplitScrollRef}
         className={`relative flex flex-1 flex-col lg:flex-row ${
@@ -1248,11 +1287,14 @@ export function ScenarioGraphExplorer({
             style={{ touchAction: "none" }}
             className={`fg-diagram-viewport relative w-full overflow-hidden cursor-grab active:cursor-grabbing ${
               selectedCanonicalNode
-                ? "h-[44dvh] min-h-[280px] sm:h-[48dvh] shrink-0 border-b border-slate-800 lg:h-full lg:flex-1 lg:border-b-0"
+                ? "h-[45dvh] min-h-[290px] sm:h-[48dvh] shrink-0 border-b border-slate-800 lg:h-full lg:flex-1 lg:border-b-0"
                 : "flex-1 h-full"
             }`}
             onMouseDown={(e) => {
               if (e.button !== 0) return;
+              if ((e.target as HTMLElement).closest("[data-outcomes-panel]")) {
+                return;
+              }
               setIsDragging(true);
               didDragMoveRef.current = false;
               dragLastClientRef.current = { x: e.clientX, y: e.clientY };
@@ -1277,87 +1319,176 @@ export function ScenarioGraphExplorer({
             }}
             onClick={(e) => {
               if (didDragMoveRef.current) return;
-              if (!(e.target as HTMLElement).closest("[data-river-node]")) {
+              if (
+                !(e.target as HTMLElement).closest("[data-river-node]") &&
+                !(e.target as HTMLElement).closest("[data-outcomes-panel]")
+              ) {
                 setSelectedNodeId(null);
               }
             }}
           >
-            {/* Top-Left Focused Neighborhood Banner when a node is selected */}
-            {selectedNeighborhood && (
-              <div className="pointer-events-auto absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-500/40 bg-slate-950/90 px-3 py-1.5 text-xs shadow-lg backdrop-blur-md">
-                  <Focus className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                  <span className="font-semibold text-amber-300">
-                    Zoomed to Branch:
-                  </span>
-                  {selectedNeighborhood.prevNode && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedNodeId(
-                            selectedNeighborhood.prevNode!.canonicalNodeId
-                          );
-                        }}
-                        className="rounded bg-slate-800 px-1.5 py-0.5 text-[11px] text-slate-300 hover:text-amber-300"
-                      >
-                        ← {selectedNeighborhood.prevNode.shortName}
-                      </button>
-                      <span className="text-slate-500">→</span>
-                    </>
-                  )}
-                  <span className="rounded bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[11px] font-bold text-white">
-                    {selectedNeighborhood.target.shortName}
-                  </span>
-                  {selectedNeighborhood.nextNodes.length > 0 && (
-                    <>
-                      <span className="text-slate-500">→</span>
-                      <div className="flex flex-wrap items-center gap-1">
-                        {selectedNeighborhood.nextNodes.map((nx) => (
+            {/* ON-CLICK ONLY: Causal Chain & Probability Multiplication Math Banner */}
+            {selectedNeighborhood && selectedCausalChain.length > 0 && (
+              <div className="pointer-events-auto absolute top-2.5 left-3 right-3 z-20 flex flex-col gap-1.5 rounded-xl border border-amber-500/40 bg-slate-950/92 px-3 py-2 text-xs shadow-xl backdrop-blur-md">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="font-bold text-amber-300 mr-1 flex items-center gap-1">
+                      <Focus className="h-3.5 w-3.5 text-amber-400" />
+                      <span>Causal Path & Math:</span>
+                    </span>
+                    {selectedCausalChain.map((step, idx) => {
+                      const isCurrent =
+                        step.id === selectedNeighborhood.target.id;
+                      const splitPct = Math.round(step.conditionalProb * 100);
+                      return (
+                        <React.Fragment key={step.id}>
+                          {idx > 0 && (
+                            <span className="font-mono text-[10px] text-amber-400/90 px-0.5">
+                              ×{splitPct}% →
+                            </span>
+                          )}
                           <button
-                            key={nx.id}
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedNodeId(nx.canonicalNodeId);
+                              setSelectedNodeId(step.canonicalNodeId);
                             }}
-                            className="rounded bg-slate-800 px-1.5 py-0.5 text-[11px] text-slate-300 hover:text-amber-300"
+                            className={`rounded px-1.5 py-0.5 text-[11px] transition-colors ${
+                              isCurrent
+                                ? "bg-amber-500 text-slate-950 font-extrabold"
+                                : "bg-slate-800/90 text-slate-200 hover:text-amber-300"
+                            }`}
                           >
-                            {nx.shortName} →
+                            {step.shortName}
                           </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+                        </React.Fragment>
+                      );
+                    })}
+                    <span className="ml-1 rounded-md bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 font-mono text-[11px] font-extrabold text-amber-300 tabular-nums">
+                      ={" "}
+                      {(selectedNeighborhood.target.overallProb * 100).toFixed(
+                        1
+                      )}
+                      % Overall
+                    </span>
+                  </div>
 
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      animateCameraTo(selectedNeighborhood.cameraBox);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-950/90 px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-amber-500/50 hover:text-amber-300 shadow"
-                  >
-                    <Focus className="h-3 w-3" />
-                    <span>Refocus Node</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      animateCameraTo(FULL_VIEWBOX);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-950/90 px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-amber-500/50 hover:text-amber-300 shadow"
-                  >
-                    <Maximize2 className="h-3 w-3" />
-                    <span>Show Full Tree</span>
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        animateCameraTo(selectedNeighborhood.cameraBox);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-medium text-slate-200 hover:border-amber-500/50 hover:text-amber-300"
+                    >
+                      <Focus className="h-3 w-3" />
+                      <span>Refocus</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        animateCameraTo(FULL_VIEWBOX);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-medium text-slate-200 hover:border-amber-500/50 hover:text-amber-300"
+                    >
+                      <Maximize2 className="h-3 w-3" />
+                      <span>Full Tree</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
+
+            {/* Right-Hand Docked "Projected End Results (100%)" Leaderboard */}
+            <div
+              data-outcomes-panel="true"
+              onClick={(e) => e.stopPropagation()}
+              className={`pointer-events-auto absolute right-3 z-10 transition-all ${
+                selectedNeighborhood ? "bottom-14" : "top-3"
+              } w-64 sm:w-72 rounded-xl border border-slate-800/90 bg-slate-950/90 shadow-2xl backdrop-blur-md`}
+            >
+              <button
+                type="button"
+                onClick={() => setOutcomesPanelOpen((o) => !o)}
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-xs font-bold text-white hover:text-amber-300"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Trophy className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Projected End Results (100%)</span>
+                </span>
+                {outcomesPanelOpen ? (
+                  <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                )}
+              </button>
+
+              {outcomesPanelOpen && (
+                <div className="max-h-[46dvh] overflow-y-auto border-t border-slate-800/80 px-2.5 py-2 space-y-1">
+                  <div className="text-[10px] text-slate-400 px-1 pb-1">
+                    Click any outcome to trace the full chain that leads there:
+                  </div>
+                  {rankedTerminalOutcomes.map((outNode, rankIdx) => {
+                    const pct = (outNode.overallProb * 100).toFixed(1);
+                    const palette = trackColors[outNode.track];
+                    const isSelected =
+                      selectedNodeId === outNode.canonicalNodeId;
+                    const isHovered = hoveredRiverId === outNode.id;
+
+                    return (
+                      <button
+                        key={outNode.id}
+                        type="button"
+                        onMouseEnter={() => setHoveredRiverId(outNode.id)}
+                        onMouseLeave={() => setHoveredRiverId(null)}
+                        onClick={() =>
+                          setSelectedNodeId((prev) =>
+                            prev === outNode.canonicalNodeId
+                              ? null
+                              : outNode.canonicalNodeId
+                          )
+                        }
+                        className={`w-full rounded-lg px-2 py-1.5 text-left transition-colors ${
+                          isSelected
+                            ? "bg-amber-500/20 border border-amber-500/40"
+                            : isHovered
+                            ? "bg-slate-800/90"
+                            : "hover:bg-slate-900/80"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 text-[11px]">
+                          <span className="font-semibold text-white truncate">
+                            <span className="font-mono text-slate-400 mr-1">
+                              {rankIdx + 1}.
+                            </span>
+                            {outNode.shortName}
+                          </span>
+                          <span
+                            className="font-mono font-bold tabular-nums shrink-0"
+                            style={{ color: palette.text }}
+                          >
+                            {pct}%
+                          </span>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-800/80">
+                          <div
+                            className={`h-full rounded-full ${palette.barClass}`}
+                            style={{
+                              width: `${Math.max(
+                                3,
+                                Math.min(100, outNode.overallProb * 100 * 2.2)
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Interactive SVG Branching Probability River driven by viewBox camera */}
             <svg
@@ -1367,9 +1498,53 @@ export function ScenarioGraphExplorer({
             >
               <defs>
                 <radialGradient id="hubGlow" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.45" />
+                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.48" />
                   <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
                 </radialGradient>
+                <linearGradient id="grad-spine" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop
+                    offset="0%"
+                    stopColor={isLightMode ? "#d97706" : "#f59e0b"}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={isLightMode ? "#ea580c" : "#fbbf24"}
+                  />
+                </linearGradient>
+                <linearGradient id="grad-race" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop
+                    offset="0%"
+                    stopColor={isLightMode ? "#d97706" : "#f59e0b"}
+                  />
+                  <stop
+                    offset="45%"
+                    stopColor={isLightMode ? "#e11d48" : "#f43f5e"}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={isLightMode ? "#be123c" : "#fb7185"}
+                  />
+                </linearGradient>
+                <linearGradient
+                  id="grad-slowdown"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="0%"
+                >
+                  <stop
+                    offset="0%"
+                    stopColor={isLightMode ? "#d97706" : "#f59e0b"}
+                  />
+                  <stop
+                    offset="45%"
+                    stopColor={isLightMode ? "#059669" : "#10b981"}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={isLightMode ? "#047857" : "#34d399"}
+                  />
+                </linearGradient>
               </defs>
 
               <g>
@@ -1416,25 +1591,25 @@ export function ScenarioGraphExplorer({
                   y={52}
                   textAnchor="middle"
                   fill={isLightMode ? "#be123c" : "#fb7185"}
-                  fontSize={12}
+                  fontSize={11.5}
                   fontWeight={800}
                   letterSpacing="0.08em"
                 >
-                  RACE BRANCH (UNCHECKED AI SCALING → TAKEOVER)
+                  RACE PATH (UNCHECKED SCALING → AI TAKEOVER)
                 </text>
                 <text
                   x={1350}
                   y={648}
                   textAnchor="middle"
                   fill={isLightMode ? "#047857" : "#34d399"}
-                  fontSize={12}
+                  fontSize={11.5}
                   fontWeight={800}
                   letterSpacing="0.08em"
                 >
-                  SLOWDOWN BRANCH (FREEZE + ALIGNED AI + VERIFIED TREATY)
+                  SLOWDOWN PATH (FREEZE + ALIGNED AI + VERIFIED TREATY)
                 </text>
 
-                {/* 1. Render Continuous Weighted Probability River Branches (Cubic Beziers) */}
+                {/* 1. Render Continuous Weighted Probability River Branches with True Sankey Split Offsets */}
                 {computedRiverNodes.map((node) => {
                   if (!node.parentId) return null;
                   const parent = riverNodeMap.get(node.parentId);
@@ -1456,17 +1631,40 @@ export function ScenarioGraphExplorer({
                     (highlightedRiverIds.has(parent.id) &&
                       highlightedRiverIds.has(node.id));
 
+                  const isActiveChainEdge =
+                    highlightedRiverIds !== null &&
+                    highlightedRiverIds.has(parent.id) &&
+                    highlightedRiverIds.has(node.id);
+
+                  // True Sankey start Y inside the parent river trunk
+                  const startY = sankeyStartYByNodeId.get(node.id) ?? parent.y;
                   const dx = node.x - parent.x;
-                  const c1x = parent.x + dx * 0.48;
-                  const c2x = parent.x + dx * 0.52;
-                  const pathD = `M ${parent.x} ${parent.y} C ${c1x} ${parent.y}, ${c2x} ${node.y}, ${node.x} ${node.y}`;
+                  const c1x = parent.x + dx * 0.46;
+                  const c2x = parent.x + dx * 0.54;
+                  const pathD = `M ${parent.x} ${startY} C ${c1x} ${startY}, ${c2x} ${node.y}, ${node.x} ${node.y}`;
 
                   const color = trackColors[node.track].stroke;
+                  const strokePaint =
+                    node.id === "river-race-1-continue"
+                      ? "url(#grad-race)"
+                      : node.id === "river-slow-1-freeze"
+                      ? "url(#grad-slowdown)"
+                      : node.track === "spine"
+                      ? "url(#grad-spine)"
+                      : color;
+
                   const condPct = Math.round(node.conditionalProb * 100);
 
-                  // Midpoint on bezier curve for the conditional split % pill
+                  // Show branch split % pill on major forks or when a chain is highlighted
+                  const showSplitBadge =
+                    condPct < 100 &&
+                    (isActiveChainEdge ||
+                      (highlightedRiverIds === null &&
+                        (node.track !== "offramp" ||
+                          node.overallProb >= 0.08)));
+
                   const midX = parent.x + dx * 0.48;
-                  const midY = (parent.y + node.y) / 2;
+                  const midY = (startY + node.y) / 2;
 
                   return (
                     <g key={`edge-${node.id}`}>
@@ -1476,9 +1674,9 @@ export function ScenarioGraphExplorer({
                           d={pathD}
                           fill="none"
                           stroke={color}
-                          strokeWidth={strokeWidth + 6}
+                          strokeWidth={strokeWidth + 7}
                           strokeLinecap="round"
-                          opacity={isLightMode ? 0.18 : 0.12}
+                          opacity={isLightMode ? 0.16 : 0.12}
                         />
                       )}
 
@@ -1486,39 +1684,52 @@ export function ScenarioGraphExplorer({
                       <path
                         d={pathD}
                         fill="none"
-                        stroke={color}
+                        stroke={strokePaint}
                         strokeWidth={strokeWidth}
                         strokeLinecap="round"
                         opacity={
                           isHighlighted
                             ? node.track === "offramp"
-                              ? 0.65
+                              ? 0.58
                               : 0.92
-                            : 0.14
+                            : 0.11
                         }
                         className="transition-all duration-300"
                       />
 
-                      {/* Conditional Split Badge along the branch ("given parent") */}
-                      {condPct < 100 && isHighlighted && (
+                      {/* Subtle animated flow pulse when a specific path/outcome is active */}
+                      {isActiveChainEdge && (
+                        <path
+                          d={pathD}
+                          fill="none"
+                          stroke={isLightMode ? "#ffffff" : "#fef3c7"}
+                          strokeWidth={Math.max(1.5, strokeWidth * 0.28)}
+                          strokeLinecap="round"
+                          opacity={0.55}
+                          className="fg-river-flow-pulse pointer-events-none"
+                        />
+                      )}
+
+                      {/* Conditional Split Badge along the branch */}
+                      {showSplitBadge && (
                         <g transform={`translate(${midX}, ${midY})`}>
                           <rect
-                            x={-20}
-                            y={-9}
-                            width={40}
-                            height={18}
-                            rx={5}
+                            x={-18}
+                            y={-8}
+                            width={36}
+                            height={16}
+                            rx={4.5}
                             fill={isLightMode ? "#ffffff" : "#070b12"}
                             stroke={color}
-                            strokeWidth={1.2}
-                            opacity={0.95}
+                            strokeWidth={1}
+                            opacity={node.track === "offramp" ? 0.82 : 0.95}
                           />
                           <text
                             x={0}
-                            y={3.5}
+                            y={3}
                             textAnchor="middle"
                             fill={isLightMode ? "#0f172a" : "#e2e8f0"}
-                            fontSize={9.5}
+                            fontSize={node.track === "offramp" ? 8.5 : 9.5}
                             fontWeight={700}
                             fontFamily="monospace"
                           >
@@ -1530,12 +1741,13 @@ export function ScenarioGraphExplorer({
                   );
                 })}
 
-                {/* 2. Render Sleek Junction Nodes & Clean Labels Along the River */}
+                {/* 2. Render Sleek Junction Nodes & Probability-Proportional Labels */}
                 {computedRiverNodes.map((node) => {
                   const isHighlighted =
                     highlightedRiverIds === null ||
                     highlightedRiverIds.has(node.id);
                   const isSelected = selectedNodeId === node.canonicalNodeId;
+                  const isHovered = hoveredRiverId === node.id;
                   const isPrevNode =
                     selectedNeighborhood?.prevNode?.id === node.id;
                   const isNextNode =
@@ -1543,6 +1755,7 @@ export function ScenarioGraphExplorer({
                       (nx) => nx.id === node.id
                     ) ?? false;
                   const isForkHub = node.id === "river-2027-oct-fork";
+                  const isSideBranch = node.track === "offramp";
 
                   const overallPct = Math.round(node.overallProb * 100);
                   const condPct = Math.round(node.conditionalProb * 100);
@@ -1551,15 +1764,41 @@ export function ScenarioGraphExplorer({
                   // Node circle radius scales with probability
                   const radius = isForkHub
                     ? 14
+                    : isSideBranch
+                    ? Math.max(
+                        4.5,
+                        Math.min(10, Math.round(4 + node.overallProb * 14))
+                      )
                     : Math.max(
-                        6,
-                        Math.min(15, Math.round(5 + node.overallProb * 10))
+                        6.5,
+                        Math.min(15, Math.round(5.5 + node.overallProb * 10))
                       );
+
+                  // Probability-proportional font size: side branches have smaller text scaled by their probability
+                  const titleFontSize = isForkHub
+                    ? 13.5
+                    : isSideBranch
+                    ? Number(
+                        (8.5 + Math.min(0.32, node.overallProb) * 6.8).toFixed(
+                          1
+                        )
+                      )
+                    : Number(
+                        (11.3 + Math.min(0.6, node.overallProb) * 3.0).toFixed(
+                          1
+                        )
+                      );
+
+                  const subFontSize = isSideBranch
+                    ? Number(
+                        (7.8 + Math.min(0.3, node.overallProb) * 4.0).toFixed(1)
+                      )
+                    : 10;
 
                   const labelAbove = node.labelPosition !== "bottom";
                   const labelYOffset = labelAbove
-                    ? -(radius + 22)
-                    : radius + 18;
+                    ? -(radius + (isSideBranch ? 16 : 22))
+                    : radius + (isSideBranch ? 13 : 18);
 
                   const roleTag = isSelected
                     ? "● SELECTED"
@@ -1568,6 +1807,15 @@ export function ScenarioGraphExplorer({
                     : isNextNode
                     ? "NEXT →"
                     : null;
+
+                  // Keep default labels visually clean: show verbose "(XX% split)" math only when clicked/hovered
+                  const showDetailedSplitOnNode =
+                    isSelected ||
+                    isHovered ||
+                    isPrevNode ||
+                    isNextNode ||
+                    (highlightedRiverIds !== null &&
+                      highlightedRiverIds.has(node.id));
 
                   return (
                     <g
@@ -1592,13 +1840,28 @@ export function ScenarioGraphExplorer({
                       onMouseLeave={() => setHoveredRiverId(null)}
                       className="cursor-pointer"
                       style={{
-                        opacity: isHighlighted ? 1 : 0.22,
+                        opacity: isHighlighted
+                          ? isSideBranch && !showDetailedSplitOnNode
+                            ? 0.82
+                            : 1
+                          : 0.16,
                         transition: "opacity 180ms ease",
                       }}
                     >
                       {/* Hub pulse glow */}
                       {isForkHub && (
                         <circle cx={0} cy={0} r={34} fill="url(#hubGlow)" />
+                      )}
+
+                      {/* Terminal Major Outcome halo */}
+                      {node.isTerminalOutcome && !isSideBranch && (
+                        <circle
+                          cx={0}
+                          cy={0}
+                          r={radius + 8}
+                          fill={palette.nodeFill}
+                          opacity={0.18}
+                        />
                       )}
 
                       {/* Selection or Prev/Next ring */}
@@ -1627,21 +1890,21 @@ export function ScenarioGraphExplorer({
                         r={radius}
                         fill={isLightMode ? "#ffffff" : "#090d16"}
                         stroke={palette.nodeFill}
-                        strokeWidth={isForkHub ? 4 : 3}
+                        strokeWidth={isForkHub ? 4 : isSideBranch ? 2.2 : 3}
                       />
                       <circle
                         cx={0}
                         cy={0}
-                        r={Math.max(2.5, radius - 4)}
+                        r={Math.max(2, radius - (isSideBranch ? 3 : 4))}
                         fill={palette.nodeFill}
                       />
 
-                      {/* Clean Floating Label with Halo Stroke for Legibility */}
+                      {/* Probability-Proportional Floating Label */}
                       <g transform={`translate(0, ${labelYOffset})`}>
                         {roleTag && (
                           <text
                             x={0}
-                            y={labelAbove ? -13 : 27}
+                            y={labelAbove ? -12 : 25}
                             textAnchor="middle"
                             fill={
                               isSelected
@@ -1666,13 +1929,13 @@ export function ScenarioGraphExplorer({
                           </text>
                         )}
 
-                        {/* Node Short Name */}
+                        {/* Node Short Name (sized by probability) */}
                         <text
                           x={0}
                           y={0}
                           textAnchor="middle"
                           fill={
-                            node.track === "offramp"
+                            isSideBranch
                               ? isLightMode
                                 ? "#475569"
                                 : "#94a3b8"
@@ -1680,36 +1943,43 @@ export function ScenarioGraphExplorer({
                               ? "#0f172a"
                               : "#ffffff"
                           }
-                          fontSize={isForkHub ? 12.5 : 11.5}
-                          fontWeight={isForkHub || isSelected ? 800 : 700}
+                          fontSize={titleFontSize}
+                          fontWeight={
+                            isForkHub || isSelected
+                              ? 800
+                              : isSideBranch
+                              ? 600
+                              : 700
+                          }
                           paintOrder="stroke"
                           stroke={isLightMode ? "#f8f6f0" : "#070b12"}
-                          strokeWidth={4}
+                          strokeWidth={isSideBranch ? 3 : 4}
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
                           {node.shortName}
                         </text>
 
-                        {/* Dual Probability Readout: Overall % + (Split % if < 100%) */}
+                        {/* Clean Probability Readout: concise by default, full split math when clicked/hovered */}
                         <text
                           x={0}
-                          y={14}
+                          y={isSideBranch ? 11.5 : 13.5}
                           textAnchor="middle"
                           fill={palette.text}
-                          fontSize={10}
+                          fontSize={subFontSize}
                           fontWeight={700}
                           fontFamily="monospace"
                           paintOrder="stroke"
                           stroke={isLightMode ? "#f8f6f0" : "#070b12"}
-                          strokeWidth={3.5}
+                          strokeWidth={3}
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
-                          {overallPct}% overall
-                          {node.parentId && condPct < 100
-                            ? ` (${condPct}% split)`
-                            : ""}
+                          {showDetailedSplitOnNode &&
+                          node.parentId &&
+                          condPct < 100
+                            ? `${overallPct}% overall (${condPct}% split)`
+                            : `${overallPct}%`}
                         </text>
                       </g>
                     </g>
@@ -1759,13 +2029,6 @@ export function ScenarioGraphExplorer({
                   Reset View
                 </button>
               </div>
-
-              <div className="hidden md:flex items-center gap-2 rounded-full border border-slate-800/90 bg-slate-950/85 px-3.5 py-1.5 text-xs text-slate-300 backdrop-blur-md">
-                <span>
-                  Pinch or scroll on diagram to zoom • Click any node to focus
-                  branch & open details
-                </span>
-              </div>
             </div>
           </div>
         ) : (
@@ -1808,16 +2071,15 @@ export function ScenarioGraphExplorer({
           </div>
         )}
 
-        {/* Detail Panel — Appears when a node on the river is clicked.
-            On mobile (< lg): renders directly below the zoomed-in diagram in the vertical scroll container
-            so the diagram stays visible at the top whenever the user scrolls back up!
-            On desktop (>= lg): renders as the right-hand side panel. */}
+        {/* Detail Panel — Appears ONLY when a node on the river (or outcome leaderboard) is clicked */}
         {selectedCanonicalNode && (
           <div className="flex flex-col w-full border-t border-slate-800 bg-slate-950 shadow-2xl lg:w-[480px] xl:w-[520px] lg:h-full lg:shrink-0 lg:border-t-0 lg:border-l">
             {/* Mobile Sticky Helper to jump back to the zoomed diagram at the top */}
             <div className="sticky top-0 z-20 flex lg:hidden items-center justify-between border-b border-slate-800 bg-slate-900/95 px-4 py-2 text-xs backdrop-blur-md">
               <span className="font-semibold text-amber-300 truncate">
-                Viewing: {selectedRiverNodeForDrawer?.shortName || selectedCanonicalNode.title}
+                Viewing:{" "}
+                {selectedRiverNodeForDrawer?.shortName ||
+                  selectedCanonicalNode.title}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -1858,8 +2120,8 @@ export function ScenarioGraphExplorer({
                       )}
                       % split →{" "}
                       <strong className="text-amber-400">
-                        {Math.round(
-                          selectedRiverNodeForDrawer.overallProb * 100
+                        {(selectedRiverNodeForDrawer.overallProb * 100).toFixed(
+                          1
                         )}
                         % overall
                       </strong>
