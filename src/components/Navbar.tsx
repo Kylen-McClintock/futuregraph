@@ -22,24 +22,63 @@ export function Navbar() {
   const pathname = usePathname();
   const [lightMode, setLightMode] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("fg-theme");
-    if (saved === "light") {
-      setLightMode(true);
-      document.documentElement.classList.add("light");
+  const applyThemeToDom = (mode: "light" | "dark", persist: boolean) => {
+    const isLight = mode === "light";
+    setLightMode(isLight);
+    document.documentElement.classList.toggle("light", isLight);
+    document.documentElement.classList.toggle("dark", !isLight);
+    const meta = document.querySelector<HTMLMetaElement>(
+      'meta[name="color-scheme"]'
+    );
+    if (persist) {
+      const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const sysMode = sysDark ? "dark" : "light";
+      try {
+        if (mode === sysMode) {
+          localStorage.removeItem("color-scheme");
+        } else {
+          localStorage.setItem("color-scheme", mode);
+        }
+        localStorage.setItem("fg-theme", mode);
+      } catch {
+        // Ignore storage errors if blocked
+      }
     }
+    if (meta) {
+      meta.content = mode;
+    }
+    window.dispatchEvent(
+      new CustomEvent("fg-theme-change", { detail: { theme: mode } })
+    );
+  };
+
+  useEffect(() => {
+    try {
+      const saved =
+        localStorage.getItem("fg-theme") ||
+        localStorage.getItem("color-scheme");
+      if (saved === "light") {
+        applyThemeToDom("light", false);
+      } else {
+        applyThemeToDom("dark", false);
+      }
+    } catch {
+      applyThemeToDom("dark", false);
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "color-scheme" || e.key === "fg-theme") {
+        const nextMode = e.newValue === "light" ? "light" : "dark";
+        applyThemeToDom(nextMode, false);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const toggleTheme = () => {
-    const next = !lightMode;
-    setLightMode(next);
-    if (next) {
-      document.documentElement.classList.add("light");
-      localStorage.setItem("fg-theme", "light");
-    } else {
-      document.documentElement.classList.remove("light");
-      localStorage.setItem("fg-theme", "dark");
-    }
+    const nextMode = lightMode ? "dark" : "light";
+    applyThemeToDom(nextMode, true);
   };
 
   // Hide top navbar chrome when in Present Mode clean view if desired, or keep compact
@@ -153,10 +192,21 @@ export function Navbar() {
           <button
             type="button"
             onClick={toggleTheme}
-            aria-label="Toggle color theme"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700 hover:text-amber-300"
+            aria-label={lightMode ? "Switch to dark theme" : "Switch to light theme"}
+            title={lightMode ? "Switch to dark theme" : "Switch to light theme"}
+            className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-slate-800 bg-slate-900 text-xs font-medium text-slate-300 hover:border-amber-500/50 hover:text-amber-300 transition-colors"
           >
-            {lightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            {lightMode ? (
+              <>
+                <Moon className="h-3.5 w-3.5 text-indigo-500" />
+                <span className="hidden sm:inline">Dark Mode</span>
+              </>
+            ) : (
+              <>
+                <Sun className="h-3.5 w-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Light Mode</span>
+              </>
+            )}
           </button>
         </div>
       </div>
