@@ -18,6 +18,7 @@ export default function AI2027ScenarioPage() {
       argumentsList={store.arguments}
       comments={store.comments}
       forecastEvents={store.forecastEvents}
+      initialSelectedNodeId={null}
     />
   );
 }
