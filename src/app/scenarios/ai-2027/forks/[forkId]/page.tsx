@@ -43,7 +43,7 @@ export default function ScenarioForkDiffPage({
   } | null>(null);
 
   useEffect(() => {
-    fetch(`/api/v1/scenarios/ai-2027/diff?forkId=${encodeURIComponent(params.forkId)}`)
+    fetch(`/futuregraph/api/v1/scenarios/ai-2027/diff?forkId=${encodeURIComponent(params.forkId)}`)
       .then((r) => r.json())
       .then((d) => setDiffData(d));
   }, [params.forkId]);

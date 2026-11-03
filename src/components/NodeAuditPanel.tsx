@@ -139,7 +139,7 @@ export function NodeAuditPanel({
     setSubmittingForecast(true);
     try {
       const probDecimal = Number((myProbPct / 100).toFixed(4));
-      const res = await fetch("/api/v1/forecasts", {
+      const res = await fetch("/futuregraph/api/v1/forecasts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -170,7 +170,7 @@ export function NodeAuditPanel({
   const handleEvidenceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!evTitle || !evUrl || !evNote) return;
-    const res = await fetch("/api/v1/evidence/proposals", {
+    const res = await fetch("/futuregraph/api/v1/evidence/proposals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -194,7 +194,7 @@ export function NodeAuditPanel({
   const handleArgumentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!argThesis || !argReasoning) return;
-    const res = await fetch("/api/v1/arguments", {
+    const res = await fetch("/futuregraph/api/v1/arguments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -219,7 +219,7 @@ export function NodeAuditPanel({
   const handleBranchProposalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!propTitle || !propSummary) return;
-    const res = await fetch("/api/v1/branches/proposals", {
+    const res = await fetch("/futuregraph/api/v1/branches/proposals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

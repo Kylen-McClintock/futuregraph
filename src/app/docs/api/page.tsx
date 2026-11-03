@@ -235,7 +235,7 @@ export default function ApiDocsPage() {
     setLoading(true);
     try {
       const parsed = JSON.parse(payloadText);
-      const res = await fetch("/api/mcp", {
+      const res = await fetch("/futuregraph/api/mcp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

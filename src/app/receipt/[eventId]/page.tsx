@@ -30,7 +30,7 @@ export default function ReceiptVerifierPage({
   const [tamperSimulated, setTamperSimulated] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/v1/receipts/${encodeURIComponent(params.eventId)}`)
+    fetch(`/futuregraph/api/v1/receipts/${encodeURIComponent(params.eventId)}`)
       .then((r) => r.json())
       .then((d) => setData(d));
   }, [params.eventId]);

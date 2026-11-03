@@ -136,7 +136,14 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-2.5">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
+          <a
+            href="https://www.agifutures.org"
+            className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-amber-500/40 hover:text-amber-300 transition-colors"
+            title="Return to AGI Futures"
+          >
+            <span>← AGI Futures</span>
+          </a>
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-sky-500/20 border border-amber-500/40 text-amber-400 shadow-sm">
               <Activity className="h-5 w-5" />

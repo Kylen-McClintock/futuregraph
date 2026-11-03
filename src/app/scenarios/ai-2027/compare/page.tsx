@@ -36,7 +36,7 @@ export default function CompareLensesPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/v1/model/compare?lensA=${lensA}&lensB=${lensB}`)
+    fetch(`/futuregraph/api/v1/model/compare?lensA=${lensA}&lensB=${lensB}`)
       .then((r) => r.json())
       .then((data) => {
         setRows(data.comparison || []);

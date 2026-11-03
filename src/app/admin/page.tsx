@@ -62,7 +62,7 @@ export default function AdminDashboardPage() {
 
   async function handleReviewProposal(proposalId: string, status: "approved" | "rejected") {
     try {
-      const res = await fetch("/api/v1/branches/proposals", {
+      const res = await fetch("/futuregraph/api/v1/branches/proposals", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ proposalId, status }),
@@ -90,7 +90,7 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     if (!newPropTitle.trim() || !newPropSummary.trim()) return;
     try {
-      const res = await fetch("/api/v1/branches/proposals", {
+      const res = await fetch("/futuregraph/api/v1/branches/proposals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
