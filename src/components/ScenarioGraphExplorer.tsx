@@ -50,13 +50,35 @@ interface RiverBranchNodeSpec {
   track: "spine" | "offramp" | "race" | "slowdown" | "hybrid";
   /** Default conditional probability P(this branch | at parent node) in [0, 1] */
   defaultConditionalProb: number;
-  /** SVG canvas coordinates (viewBox 0 0 1620 700) */
+  /** SVG canvas coordinates (viewBox 0 0 1860 720) */
   x: number;
   y: number;
   labelPosition?: "top" | "bottom" | "right" | "left";
 }
 
-const FULL_VIEWBOX = { x: 0, y: 0, w: 1620, h: 700 };
+const FULL_VIEWBOX = { x: 0, y: 0, w: 1860, h: 720 };
+
+function splitIntoTwoLines(text: string, maxChars = 17): string[] {
+  if (text.length <= maxChars) return [text];
+  const words = text.split(" ");
+  if (words.length <= 1) return [text];
+  const mid = Math.floor(text.length / 2);
+  let bestSplitIdx = 1;
+  let bestDiff = Infinity;
+  let running = 0;
+  for (let i = 0; i < words.length - 1; i++) {
+    running += words[i].length + (i > 0 ? 1 : 0);
+    const diff = Math.abs(running - mid);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestSplitIdx = i + 1;
+    }
+  }
+  return [
+    words.slice(0, bestSplitIdx).join(" "),
+    words.slice(bestSplitIdx).join(" "),
+  ];
+}
 
 const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
   // 0. Root (Mid 2025) — 100% Starting Point
@@ -68,7 +90,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "Mid 2025",
     track: "spine",
     defaultConditionalProb: 1.0,
-    x: 85,
+    x: 95,
     y: 370,
     labelPosition: "top",
   },
@@ -82,7 +104,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2026",
     track: "spine",
     defaultConditionalProb: 0.88,
-    x: 275,
+    x: 295,
     y: 340,
     labelPosition: "top",
   },
@@ -94,7 +116,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2026",
     track: "offramp",
     defaultConditionalProb: 0.12,
-    x: 275,
+    x: 295,
     y: 545,
     labelPosition: "bottom",
   },
@@ -108,8 +130,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "Mar 2027",
     track: "spine",
     defaultConditionalProb: 0.68,
-    x: 475,
-    y: 310,
+    x: 505,
+    y: 312,
     labelPosition: "top",
   },
   {
@@ -120,8 +142,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2027",
     track: "offramp",
     defaultConditionalProb: 0.32,
-    x: 475,
-    y: 505,
+    x: 505,
+    y: 510,
     labelPosition: "bottom",
   },
 
@@ -134,7 +156,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "Mid 2027",
     track: "spine",
     defaultConditionalProb: 0.85,
-    x: 675,
+    x: 720,
     y: 310,
     labelPosition: "top",
   },
@@ -146,7 +168,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "Mid 2027",
     track: "offramp",
     defaultConditionalProb: 0.15,
-    x: 675,
+    x: 720,
     y: 145,
     labelPosition: "top",
   },
@@ -160,7 +182,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "Sep 2027",
     track: "spine",
     defaultConditionalProb: 0.9,
-    x: 865,
+    x: 935,
     y: 335,
     labelPosition: "bottom",
   },
@@ -172,8 +194,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "Sep 2027",
     track: "offramp",
     defaultConditionalProb: 0.1,
-    x: 865,
-    y: 175,
+    x: 935,
+    y: 170,
     labelPosition: "top",
   },
 
@@ -186,8 +208,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "Oct 2027 Fork",
     track: "spine",
     defaultConditionalProb: 1.0,
-    x: 1015,
-    y: 335,
+    x: 1125,
+    y: 332,
     labelPosition: "top",
   },
 
@@ -202,8 +224,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "Nov 2027",
     track: "race",
     defaultConditionalProb: 0.52,
-    x: 1170,
-    y: 135,
+    x: 1315,
+    y: 140,
     labelPosition: "top",
   },
   {
@@ -214,8 +236,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2028",
     track: "race",
     defaultConditionalProb: 0.88,
-    x: 1305,
-    y: 120,
+    x: 1475,
+    y: 122,
     labelPosition: "top",
   },
   {
@@ -226,8 +248,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2028",
     track: "offramp",
     defaultConditionalProb: 0.12,
-    x: 1305,
-    y: 230,
+    x: 1475,
+    y: 235,
     labelPosition: "bottom",
   },
   {
@@ -238,8 +260,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2029",
     track: "race",
     defaultConditionalProb: 0.86,
-    x: 1425,
-    y: 105,
+    x: 1625,
+    y: 110,
     labelPosition: "top",
   },
   {
@@ -250,8 +272,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2029",
     track: "offramp",
     defaultConditionalProb: 0.14,
-    x: 1425,
-    y: 205,
+    x: 1625,
+    y: 215,
     labelPosition: "bottom",
   },
   {
@@ -262,8 +284,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2030",
     track: "race",
     defaultConditionalProb: 1.0,
-    x: 1525,
-    y: 105,
+    x: 1765,
+    y: 108,
     labelPosition: "top",
   },
 
@@ -278,8 +300,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2028–2030",
     track: "hybrid",
     defaultConditionalProb: 0.12,
-    x: 1215,
-    y: 335,
+    x: 1350,
+    y: 340,
     labelPosition: "bottom",
   },
 
@@ -294,7 +316,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "Nov 2027",
     track: "slowdown",
     defaultConditionalProb: 0.36,
-    x: 1170,
+    x: 1315,
     y: 545,
     labelPosition: "bottom",
   },
@@ -306,7 +328,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2028",
     track: "slowdown",
     defaultConditionalProb: 0.88,
-    x: 1305,
+    x: 1475,
     y: 560,
     labelPosition: "bottom",
   },
@@ -318,7 +340,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2028",
     track: "offramp",
     defaultConditionalProb: 0.12,
-    x: 1305,
+    x: 1475,
     y: 445,
     labelPosition: "top",
   },
@@ -330,7 +352,7 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "Late 2028",
     track: "slowdown",
     defaultConditionalProb: 0.87,
-    x: 1425,
+    x: 1625,
     y: 575,
     labelPosition: "bottom",
   },
@@ -342,8 +364,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2029",
     track: "offramp",
     defaultConditionalProb: 0.13,
-    x: 1425,
-    y: 470,
+    x: 1625,
+    y: 465,
     labelPosition: "top",
   },
   {
@@ -354,8 +376,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2030",
     track: "slowdown",
     defaultConditionalProb: 1.0,
-    x: 1525,
-    y: 575,
+    x: 1765,
+    y: 572,
     labelPosition: "bottom",
   },
 ];
@@ -1607,7 +1629,14 @@ export function ScenarioGraphExplorer({
                   <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.48" />
                   <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
                 </radialGradient>
-                <linearGradient id="grad-spine" x1="0%" y1="0%" x2="100%" y2="0%">
+                <linearGradient
+                  id="grad-spine"
+                  gradientUnits="userSpaceOnUse"
+                  x1="80"
+                  y1="0"
+                  x2="1150"
+                  y2="0"
+                >
                   <stop
                     offset="0%"
                     stopColor={isLightMode ? "#d97706" : "#f59e0b"}
@@ -1617,7 +1646,14 @@ export function ScenarioGraphExplorer({
                     stopColor={isLightMode ? "#ea580c" : "#fbbf24"}
                   />
                 </linearGradient>
-                <linearGradient id="grad-race" x1="0%" y1="0%" x2="100%" y2="0%">
+                <linearGradient
+                  id="grad-race"
+                  gradientUnits="userSpaceOnUse"
+                  x1="700"
+                  y1="0"
+                  x2="1780"
+                  y2="0"
+                >
                   <stop
                     offset="0%"
                     stopColor={isLightMode ? "#d97706" : "#f59e0b"}
@@ -1633,10 +1669,11 @@ export function ScenarioGraphExplorer({
                 </linearGradient>
                 <linearGradient
                   id="grad-slowdown"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="0%"
+                  gradientUnits="userSpaceOnUse"
+                  x1="700"
+                  y1="0"
+                  x2="1780"
+                  y2="0"
                 >
                   <stop
                     offset="0%"
@@ -1658,24 +1695,24 @@ export function ScenarioGraphExplorer({
                 {(activeScenarioSlug === "ai-2040"
                   ? AI_2040_TIMELINE_COLS
                   : [
-                      { x: 85, year: "2025" },
-                      { x: 275, year: "2026" },
-                      { x: 475, year: "EARLY 2027" },
-                      { x: 675, year: "MID 2027" },
-                      { x: 865, year: "SEP 2027" },
-                      { x: 1015, year: "OCT 2027 FORK" },
-                      { x: 1170, year: "NOV 2027" },
-                      { x: 1305, year: "2028" },
-                      { x: 1425, year: "2029" },
-                      { x: 1525, year: "2030" },
+                      { x: 95, year: "2025" },
+                      { x: 295, year: "2026" },
+                      { x: 505, year: "EARLY 2027" },
+                      { x: 720, year: "MID 2027" },
+                      { x: 935, year: "SEP 2027" },
+                      { x: 1125, year: "OCT 2027 FORK" },
+                      { x: 1315, year: "NOV 2027" },
+                      { x: 1475, year: "2028" },
+                      { x: 1625, year: "2029" },
+                      { x: 1765, year: "2030" },
                     ]
                 ).map((col) => (
                   <g key={col.year}>
                     <line
                       x1={col.x}
-                      y1={40}
+                      y1={42}
                       x2={col.x}
-                      y2={660}
+                      y2={680}
                       stroke={isLightMode ? "#cbd5e1" : "#1e293b"}
                       strokeWidth={1}
                       strokeDasharray="4 6"
@@ -1696,11 +1733,11 @@ export function ScenarioGraphExplorer({
 
                 {/* Major Outcome Region Labels on the Right */}
                 <text
-                  x={1240}
-                  y={52}
+                  x={1380}
+                  y={48}
                   textAnchor="middle"
                   fill={isLightMode ? "#be123c" : "#fb7185"}
-                  fontSize={11.5}
+                  fontSize={11}
                   fontWeight={800}
                   letterSpacing="0.08em"
                 >
@@ -1709,11 +1746,11 @@ export function ScenarioGraphExplorer({
                     : "RACE PATH (UNCHECKED SCALING → AI TAKEOVER)"}
                 </text>
                 <text
-                  x={1240}
-                  y={648}
+                  x={1380}
+                  y={695}
                   textAnchor="middle"
                   fill={isLightMode ? "#047857" : "#34d399"}
-                  fontSize={11.5}
+                  fontSize={11}
                   fontWeight={800}
                   letterSpacing="0.08em"
                 >
@@ -1893,29 +1930,48 @@ export function ScenarioGraphExplorer({
 
                   // Probability-proportional font size: side branches have smaller text scaled by their probability
                   const titleFontSize = isForkHub
-                    ? 13.5
+                    ? 13
                     : isSideBranch
                     ? Number(
-                        (8.5 + Math.min(0.32, node.overallProb) * 6.8).toFixed(
+                        (8.4 + Math.min(0.32, node.overallProb) * 6.5).toFixed(
                           1
                         )
                       )
                     : Number(
-                        (11.3 + Math.min(0.6, node.overallProb) * 3.0).toFixed(
+                        (10.8 + Math.min(0.6, node.overallProb) * 2.8).toFixed(
                           1
                         )
                       );
 
                   const subFontSize = isSideBranch
                     ? Number(
-                        (7.8 + Math.min(0.3, node.overallProb) * 4.0).toFixed(1)
+                        (7.6 + Math.min(0.3, node.overallProb) * 3.8).toFixed(1)
                       )
-                    : 10;
+                    : 9.8;
 
                   const labelAbove = node.labelPosition !== "bottom";
-                  const labelYOffset = labelAbove
-                    ? -(radius + (isSideBranch ? 16 : 22))
-                    : radius + (isSideBranch ? 13 : 18);
+                  const titleLines = splitIntoTwoLines(node.shortName, 17);
+                  const lineHeight = Math.round(titleFontSize * 1.18);
+
+                  // Collision-proof vertical anchoring:
+                  // - When labelAbove: anchor from the top of the circle upward so multi-line titles expand UPWARD away from the branch
+                  // - When !labelAbove: anchor from the bottom of the circle downward so multi-line titles expand DOWNWARD away from the branch
+                  const probY = labelAbove
+                    ? -(radius + (isSideBranch ? 8 : 10))
+                    : radius +
+                      (isSideBranch ? 14 : 17) +
+                      (titleLines.length - 1) * lineHeight +
+                      (isSideBranch ? 11.5 : 13.5);
+
+                  const titleFirstLineY = labelAbove
+                    ? probY -
+                      (isSideBranch ? 12 : 14) -
+                      (titleLines.length - 1) * lineHeight
+                    : radius + (isSideBranch ? 14 : 17);
+
+                  const roleTagY = labelAbove
+                    ? titleFirstLineY - 12
+                    : probY + 13;
 
                   const roleTag = isSelected
                     ? "● SELECTED"
@@ -2016,12 +2072,12 @@ export function ScenarioGraphExplorer({
                         fill={palette.nodeFill}
                       />
 
-                      {/* Probability-Proportional Floating Label */}
-                      <g transform={`translate(0, ${labelYOffset})`}>
+                      {/* Probability-Proportional Multi-Line Floating Label */}
+                      <g>
                         {roleTag && (
                           <text
                             x={0}
-                            y={labelAbove ? -12 : 25}
+                            y={roleTagY}
                             textAnchor="middle"
                             fill={
                               isSelected
@@ -2046,10 +2102,10 @@ export function ScenarioGraphExplorer({
                           </text>
                         )}
 
-                        {/* Node Short Name (sized by probability) */}
+                        {/* Node Short Name (auto-wrapped to max 2 lines, sized by probability) */}
                         <text
                           x={0}
-                          y={0}
+                          y={titleFirstLineY}
                           textAnchor="middle"
                           fill={
                             isSideBranch
@@ -2074,13 +2130,21 @@ export function ScenarioGraphExplorer({
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
-                          {node.shortName}
+                          {titleLines.map((line, lIdx) => (
+                            <tspan
+                              key={lIdx}
+                              x={0}
+                              dy={lIdx === 0 ? 0 : lineHeight}
+                            >
+                              {line}
+                            </tspan>
+                          ))}
                         </text>
 
-                        {/* Clean Probability Readout: concise by default, full split math when clicked/hovered */}
+                        {/* Clean Probability Readout: concise by default, split math when clicked/hovered */}
                         <text
                           x={0}
-                          y={isSideBranch ? 11.5 : 13.5}
+                          y={probY}
                           textAnchor="middle"
                           fill={palette.text}
                           fontSize={subFontSize}
@@ -2095,7 +2159,7 @@ export function ScenarioGraphExplorer({
                           {showDetailedSplitOnNode &&
                           node.parentId &&
                           condPct < 100
-                            ? `${overallPct}% overall (${condPct}% split)`
+                            ? `${overallPct}% (${condPct}% split)`
                             : `${overallPct}%`}
                         </text>
                       </g>
