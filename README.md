@@ -7,6 +7,7 @@
 
 ## Live Links & Cloud Infrastructure
 
+- **Live Production Deployment (Vercel):** `https://futuregraph-beta.vercel.app`
 - **GitHub Repository:** `https://github.com/Kylen-McClintock/futuregraph`
 - **Supabase Project:** `FutureGraph` (`ref: hylrgvcqdowfmfudqyae` — `https://hylrgvcqdowfmfudqyae.supabase.co`)
 - **Primary Source Material:** [AI 2027](https://ai-2027.com/) by Daniel Kokotajlo, Scott Alexander, Thomas Larsen, Eli Lifland, and Romeo Dean ([AI Futures Project](https://ai-futures.org/)).
