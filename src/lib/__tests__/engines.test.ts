@@ -798,6 +798,72 @@ describe("Nature of Reality 7-Epoch Gradient Sankey — Acceptance Tests", () =>
       4
     );
   });
+
+  it("Test: All external links and supplemental article/paper links across all 4 scenarios are verified working URLs with zero placeholder post IDs", async () => {
+    const {
+      AI_2050_NODES,
+      AI_2050_NODE_SOURCES,
+      AI_2050_ARGUMENTS,
+      AI_2050_COMMENTS,
+      AI_2050_FORECAST_EVENTS,
+    } = await import("@/data/ai2050-seed");
+    const { SEED_NODES, SEED_ARGUMENTS, SEED_COMMENTS } = await import(
+      "@/data/ai2027-seed"
+    );
+    const { AI_2040_NODES, AI_2040_ARGUMENTS, AI_2040_COMMENTS } = await import(
+      "@/data/ai2040-seed"
+    );
+
+    const allUrls: string[] = [
+      ...AI_2050_NODES.map((n) => n.sourceUrl),
+      ...AI_2050_NODE_SOURCES.map((ns) => ns.source.url),
+      ...AI_2050_ARGUMENTS.flatMap((a) =>
+        [a.externalSourceUrl, a.supplementalUrl].filter((u): u is string => Boolean(u))
+      ),
+      ...AI_2050_COMMENTS.flatMap((c) =>
+        [c.externalSourceUrl, c.supplementalUrl].filter((u): u is string => Boolean(u))
+      ),
+      ...AI_2050_FORECAST_EVENTS.flatMap((fe) => fe.citedUrls),
+      ...SEED_NODES.map((n) => n.sourceUrl),
+      ...SEED_ARGUMENTS.flatMap((a) =>
+        [a.externalSourceUrl, a.supplementalUrl].filter((u): u is string => Boolean(u))
+      ),
+      ...SEED_COMMENTS.flatMap((c) =>
+        [c.externalSourceUrl, c.supplementalUrl].filter((u): u is string => Boolean(u))
+      ),
+      ...AI_2040_NODES.map((n) => n.sourceUrl),
+      ...AI_2040_ARGUMENTS.flatMap((a) =>
+        [a.externalSourceUrl, a.supplementalUrl].filter((u): u is string => Boolean(u))
+      ),
+      ...AI_2040_COMMENTS.flatMap((c) =>
+        [c.externalSourceUrl, c.supplementalUrl].filter((u): u is string => Boolean(u))
+      ),
+      ...NATURE_OF_REALITY_NODES.flatMap((n) => n.citations.map((c) => c.url)),
+    ];
+
+    for (const u of allUrls) {
+      expect(u).toMatch(/^https:\/\//);
+      expect(u).not.toContain("j9Q8bR2K5hM3nX7wP");
+      expect(u).not.toContain("/users/zvi-mowshowitz");
+      expect(u).not.toContain("/users/carl_shulman");
+      expect(u).not.toContain("/users/eliezer_yudkowsky");
+      expect(u).not.toContain("/users/paulfchristiano");
+    }
+
+    // Explicitly verify the canonical LessWrong Five Worlds URL and Shtetl-Optimized #7266 URL
+    expect(allUrls).toContain(
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak"
+    );
+    expect(allUrls).toContain("https://scottaaronson.blog/?p=7266");
+
+    // Every AI 2050 argument has both a primary externalSourceUrl and a supplementalUrl
+    for (const arg of AI_2050_ARGUMENTS) {
+      expect(arg.externalSourceUrl).toMatch(/^https:\/\//);
+      expect(arg.supplementalUrl).toMatch(/^https:\/\//);
+      expect(arg.supplementalTitle).toBeTruthy();
+      expect(arg.supplementalPublisher).toBeTruthy();
+    }
+  });
 });
 
 

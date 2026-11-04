@@ -428,19 +428,60 @@ export function NodeAuditPanel({
           <div className="space-y-5">
             {/* Detailed Scenario & Observed Reality Context */}
             <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-amber-400">
                   Scenario & Reality Verification
                 </span>
-                <a
-                  href={node.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 text-xs text-sky-400 hover:underline"
-                >
-                  <span>Primary Source</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <a
+                    href={node.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-md border border-sky-500/30 bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/25"
+                  >
+                    <span>Primary Source</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                  {isAI2050 && (
+                    <>
+                      {node.sourceUrl !==
+                        "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak" && (
+                        <a
+                          href="https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/25"
+                        >
+                          <span>LessWrong: Five Worlds</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                      {node.sourceUrl !== "https://scottaaronson.blog/?p=7266" && (
+                        <a
+                          href="https://scottaaronson.blog/?p=7266"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300 hover:bg-amber-500/25"
+                        >
+                          <span>Shtetl-Optimized #7266</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                      {node.sourceUrl !==
+                        "https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/" && (
+                        <a
+                          href="https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-violet-500/30 bg-violet-500/15 px-2 py-0.5 text-[11px] font-semibold text-violet-300 hover:bg-violet-500/25"
+                        >
+                          <span>Metaculus #20683</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
               <div className="text-xs sm:text-sm text-slate-200 whitespace-pre-line leading-relaxed pretty-copy">
                 {node.detailedDescription}
@@ -449,6 +490,28 @@ export function NodeAuditPanel({
                 <strong className="text-amber-300">Verification Note: </strong>
                 {node.verificationNote}
               </div>
+              {/* Supplemental Evidence & Academic Papers Strip */}
+              {evidence.length > 0 && (
+                <div className="pt-1 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                    Linked Literature:
+                  </span>
+                  {evidence.map((ev) => (
+                    <a
+                      key={ev.id}
+                      href={ev.source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded border border-slate-700/90 bg-slate-950 px-2 py-0.5 text-[10px] text-slate-200 hover:border-amber-500/50 hover:text-amber-300"
+                      title={`${ev.source.authors} (${ev.source.publisher})`}
+                    >
+                      <FileText className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+                      <span className="truncate max-w-[240px]">{ev.source.title}</span>
+                      <ExternalLink className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Operationalized Forecast Question Specification */}
@@ -536,7 +599,7 @@ export function NodeAuditPanel({
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {arg.externalUpvotes !== undefined && (
                             <span className="rounded bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-mono font-bold text-emerald-300 tabular-nums">
                               ▲ {arg.externalUpvotes}
@@ -553,6 +616,19 @@ export function NodeAuditPanel({
                               <ExternalLink className="h-2.5 w-2.5" />
                             </a>
                           )}
+                          {arg.supplementalUrl && (
+                            <a
+                              href={arg.supplementalUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={arg.supplementalTitle || "Supplemental Article / Paper"}
+                              className="inline-flex items-center gap-0.5 rounded bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 hover:bg-amber-500/25"
+                            >
+                              <FileText className="h-2.5 w-2.5" />
+                              <span>{arg.supplementalPublisher || "Supplemental Paper"}</span>
+                              <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                          )}
                         </div>
                       </div>
                       <div className="text-xs font-bold text-white">
@@ -561,6 +637,26 @@ export function NodeAuditPanel({
                       <p className="text-xs text-slate-300 leading-relaxed">
                         {arg.reasoning}
                       </p>
+                      {arg.supplementalUrl && (
+                        <div className="pt-1">
+                          <a
+                            href={arg.supplementalUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/25 bg-amber-950/25 px-2 py-1 text-[11px] text-amber-200 hover:border-amber-400/50 hover:text-amber-100"
+                          >
+                            <BookOpen className="h-3 w-3 text-amber-400 shrink-0" />
+                            <span>
+                              <strong>Supplemental Article / Paper:</strong>{" "}
+                              {arg.supplementalTitle || arg.supplementalUrl}
+                              {arg.supplementalPublisher
+                                ? ` (${arg.supplementalPublisher})`
+                                : ""}
+                            </span>
+                            <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                          </a>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -899,7 +995,7 @@ export function NodeAuditPanel({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {arg.externalSourceUrl && (
                       <a
                         href={arg.externalSourceUrl}
@@ -908,6 +1004,18 @@ export function NodeAuditPanel({
                         className="inline-flex items-center gap-1 rounded-md border border-sky-500/30 bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300 hover:bg-sky-500/25"
                       >
                         <span>Original Post</span>
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    )}
+                    {arg.supplementalUrl && (
+                      <a
+                        href={arg.supplementalUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300 hover:bg-amber-500/25"
+                      >
+                        <FileText className="h-2.5 w-2.5" />
+                        <span>{arg.supplementalPublisher || "Supplemental Paper"}</span>
                         <ExternalLink className="h-2.5 w-2.5" />
                       </a>
                     )}
@@ -921,6 +1029,30 @@ export function NodeAuditPanel({
                 <p className="text-xs text-slate-300 leading-relaxed pretty-copy">
                   {arg.reasoning}
                 </p>
+
+                {arg.supplementalUrl && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-xs text-amber-200 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <BookOpen className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                      <span className="truncate">
+                        <strong className="text-amber-300">Supplemental Article / Paper:</strong>{" "}
+                        {arg.supplementalTitle || arg.supplementalUrl}
+                        {arg.supplementalPublisher
+                          ? ` — ${arg.supplementalPublisher}`
+                          : ""}
+                      </span>
+                    </div>
+                    <a
+                      href={arg.supplementalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 inline-flex items-center gap-1 rounded bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] font-bold text-amber-200 hover:bg-amber-500/30"
+                    >
+                      <span>Read</span>
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
+                )}
 
                 {arg.targetAssumption && (
                   <div className="rounded-lg bg-slate-950/80 border border-slate-800 px-2.5 py-1.5 text-[11px] font-mono text-amber-300">

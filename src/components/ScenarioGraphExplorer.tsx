@@ -1848,14 +1848,72 @@ export function ScenarioGraphExplorer({
                   : "AI 2027 Branching Probability River"}
               </h1>
               {activeScenarioSlug === "ai-2050" && (
-                <a
-                  href="https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="ml-1 rounded-md border border-sky-500/40 bg-sky-500/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-sky-300 hover:bg-sky-500/25"
-                >
-                  Metaculus #20683 ↗
-                </a>
+                <div className="flex flex-wrap items-center gap-1 ml-1">
+                  <a
+                    href="https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-sky-500/40 bg-sky-500/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-sky-300 hover:bg-sky-500/25"
+                  >
+                    Metaculus #20683 ↗
+                  </a>
+                  <a
+                    href="https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-emerald-300 hover:bg-emerald-500/25"
+                  >
+                    LessWrong: Five Worlds ↗
+                  </a>
+                  <a
+                    href="https://scottaaronson.blog/?p=7266"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-amber-300 hover:bg-amber-500/25"
+                  >
+                    Shtetl-Optimized #7266 ↗
+                  </a>
+                </div>
+              )}
+              {activeScenarioSlug === "ai-2027" && (
+                <div className="hidden xl:flex flex-wrap items-center gap-1 ml-1">
+                  <a
+                    href="https://ai-2027.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-amber-300 hover:bg-amber-500/25"
+                  >
+                    ai-2027.com ↗
+                  </a>
+                  <a
+                    href="https://arxiv.org/abs/2503.14499"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-sky-500/40 bg-sky-500/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-sky-300 hover:bg-sky-500/25"
+                  >
+                    METR arXiv:2503.14499 ↗
+                  </a>
+                </div>
+              )}
+              {activeScenarioSlug === "ai-2040" && (
+                <div className="hidden xl:flex flex-wrap items-center gap-1 ml-1">
+                  <a
+                    href="https://ai-2040.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-emerald-300 hover:bg-emerald-500/25"
+                  >
+                    ai-2040.com ↗
+                  </a>
+                  <a
+                    href="https://arxiv.org/abs/2403.10462"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-sky-500/40 bg-sky-500/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-sky-300 hover:bg-sky-500/25"
+                  >
+                    Safety Cases arXiv:2403.10462 ↗
+                  </a>
+                </div>
               )}
             </div>
             <span className="hidden 2xl:inline text-xs text-slate-400">

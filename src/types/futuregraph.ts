@@ -212,6 +212,10 @@ export interface ArgumentItem {
   externalSourceUrl?: string;
   externalPlatform?: string;
   externalUpvotes?: number;
+  /** Optional supplemental article, foundational essay, or academic paper backing this argument */
+  supplementalUrl?: string;
+  supplementalTitle?: string;
+  supplementalPublisher?: string;
   reactions: {
     made_me_reconsider: number;
     taught_me_something: number;
@@ -233,6 +237,9 @@ export interface CommentItem {
   externalPlatform?: string;
   externalSourceUrl?: string;
   externalUpvotes?: number;
+  supplementalUrl?: string;
+  supplementalTitle?: string;
+  supplementalPublisher?: string;
   body: string;
   createdAt: string;
 }

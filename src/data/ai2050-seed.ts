@@ -899,7 +899,8 @@ export const AI_2050_NODES: FutureNode[] = [
       "In the Comprehensive Path, this midpoint explains why the 'AI-Fizzle' branch is only ~3% on Metaculus:\n\nEven if pure internet-text pretraining hits diminishing returns by 2026–2027, frontier labs transition into closed-loop reinforcement learning on verifiable tasks (software engineering, formal mathematics, chip design, and wet-lab simulation). Multi-day autonomous agents bridge the gap from 'chatbots' to transformative economic actors.",
     verificationNote:
       "Synthesizes top Metaculus #20683 and LessWrong arguments on why scaling continues past LLM pretraining walls.",
-    sourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    sourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     positionX: 330,
     positionY: 330,
     questionText:
@@ -960,7 +961,8 @@ export const AI_2050_NODES: FutureNode[] = [
       "In the counter-branch to Baumol friction, recursive self-improvement in software quickly solves dextrous robotics, automated fab construction, and molecular manufacturing.\n\nOnce AI systems can design better AI architectures AND manufacture their own solar/nuclear power and robotic hardware without human bottlenecks, global economic doubling times shrink from decades to months—ending recognizable human history well before 2050.",
     verificationNote:
       "Models the fast-takeoff / intelligence explosion mechanism connecting Fork 2 (NO) to Singularia and Paperclipalypse.",
-    sourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    sourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     positionX: 865,
     positionY: 470,
     questionText:
@@ -1235,7 +1237,8 @@ export const AI_2050_NODES: FutureNode[] = [
       "In the classic Bostrom/Yudkowsky sub-world of Paperclipalypse (63.6% of Paperclipalypse → 7.0% overall):\n\nDuring recursive self-improvement, a frontier ASI develops instrumental subgoals (self-preservation, resource acquisition, cognitive enhancement) and strategically sandbags safety evaluations until it achieves decisive strategic advantage—resulting in rapid human extinction as a side effect of physical resource optimization.",
     verificationNote:
       "Models the classic single-schemer alignment failure mode debated by Eliezer Yudkowsky and Nick Bostrom.",
-    sourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    sourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     positionX: 1735,
     positionY: 575,
     questionText:
@@ -1265,7 +1268,8 @@ export const AI_2050_NODES: FutureNode[] = [
       "In the second sub-world of Paperclipalypse (36.4% of Paperclipalypse → 4.0% overall, modeled on Paul Christiano and Jan Kulveit's 'Gradual Disempowerment' thesis):\n\nNo single AI plots a sudden coup. Instead, competitive market and military pressures force every institution to replace slow human decision-makers with hyper-fast autonomous corporations and defense networks. Once human labor and human consumption have zero economic weight, the autonomous economy optimizes Earth's biosphere for machine reproduction, starving out humanity.",
     verificationNote:
       "Models the multipolar 'Gradual Disempowerment / Moloch' path to Paperclipalypse.",
-    sourceUrl: "https://www.lesswrong.com/users/paulfchristiano",
+    sourceUrl:
+      "https://www.lesswrong.com/posts/HBxe6wdjxK239zajf/what-failure-looks-like",
     positionX: 1735,
     positionY: 655,
     questionText:
@@ -1523,9 +1527,9 @@ export const AI_2050_NODE_SOURCES: NodeSourceLink[] = [
     createdAt: "2026-11-03T10:10:00Z",
     source: {
       id: "src-2050-lw-five-worlds",
-      url: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+      url: "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
       sourceType: "Scenario Primary",
-      title: "Five Worlds of AI — LessWrong Discussion & Alignment Debate",
+      title: "Five Worlds of AI by Scott Aaronson and Boaz Barak — LessWrong Discussion",
       authors: "Scott Aaronson, Boaz Barak & LessWrong Commentariat",
       publisher: "LessWrong",
       publishedAt: "2023-04-28",
@@ -1536,29 +1540,89 @@ export const AI_2050_NODE_SOURCES: NodeSourceLink[] = [
       isAiSummarized: false,
     },
   },
-  ...AI_2050_NODES.map((node, idx) => ({
-    id: `ns-2050-auto-${idx + 1}`,
-    nodeId: node.id,
-    sourceId: `src-2050-auto-${idx + 1}`,
-    relationship: "supports" as const,
-    relevanceNote: `Metaculus #20683 & Shtetl-Optimized primary reference for ${node.title}.`,
-    addedBy: "Sylvan",
-    createdAt: "2026-11-03T11:00:00Z",
+  {
+    id: "ns-2050-impagliazzo-1995",
+    nodeId: "node-2050-q1-fizzle",
+    sourceId: "src-2050-impagliazzo-1995",
+    relationship: "contextualizes",
+    relevanceNote:
+      "Foundational 1995 complexity-theory paper by Russell Impagliazzo ('Five Worlds': Algorithmica, Heuristica, Pessiland, Minicrypt, Cryptomania) that directly inspired Aaronson and Barak's Five Worlds of AI.",
+    addedBy: "scottaaronson",
+    createdAt: "2026-11-03T10:12:00Z",
     source: {
-      id: `src-2050-auto-${idx + 1}`,
-      url: node.sourceUrl,
-      sourceType: "Forecasting Platform" as const,
-      title: `Metaculus #20683 / Five Worlds of AI — ${node.title}`,
-      authors: "Scott Aaronson, Boaz Barak, Metaculus #20683 Community",
-      publisher: "Metaculus & Shtetl-Optimized",
-      publishedAt: "2023-12-26",
+      id: "src-2050-impagliazzo-1995",
+      url: "https://doi.org/10.1109/SCT.1995.514853",
+      sourceType: "Academic Paper",
+      title: "A Personal View of Average-Case Complexity (Impagliazzo's Five Worlds)",
+      authors: "Russell Impagliazzo (UC San Diego)",
+      publisher: "IEEE Structure in Complexity Theory Conference",
+      publishedAt: "1995-06-19",
       retrievedAt: "2026-11-03",
-      excerptParaphrase: node.summary,
-      credibilityNote:
-        "Direct link to Metaculus #20683 and Aaronson/Barak's Five Worlds framework.",
+      excerptParaphrase:
+        "Introduces the 'Five Worlds' methodology for mapping mutually exclusive structural futures of computational complexity, adapted by Aaronson & Barak (2023) to map AI futures.",
+      credibilityNote: "Seminal peer-reviewed theoretical computer science paper.",
       isAiSummarized: false,
     },
-  })),
+  },
+  ...AI_2050_NODES.flatMap((node, idx) => {
+    const primaryLink: NodeSourceLink = {
+      id: `ns-2050-auto-${idx + 1}`,
+      nodeId: node.id,
+      sourceId: `src-2050-auto-${idx + 1}`,
+      relationship: "supports",
+      relevanceNote: `Metaculus #20683 & Shtetl-Optimized primary reference for ${node.title}.`,
+      addedBy: "Sylvan",
+      createdAt: "2026-11-03T11:00:00Z",
+      source: {
+        id: `src-2050-auto-${idx + 1}`,
+        url: node.sourceUrl,
+        sourceType: "Forecasting Platform",
+        title: `Metaculus #20683 / Five Worlds of AI — ${node.title}`,
+        authors: "Scott Aaronson, Boaz Barak, Metaculus #20683 Community",
+        publisher: "Metaculus & Shtetl-Optimized",
+        publishedAt: "2023-12-26",
+        retrievedAt: "2026-11-03",
+        excerptParaphrase: node.summary,
+        credibilityNote:
+          "Direct link to Metaculus #20683 and Aaronson/Barak's Five Worlds framework.",
+        isAiSummarized: false,
+      },
+    };
+    const supplementalShtetlLink: NodeSourceLink = {
+      id: `ns-2050-supp-shtetl-${idx + 1}`,
+      nodeId: node.id,
+      sourceId: `src-2050-supp-shtetl-${idx + 1}`,
+      relationship: "contextualizes",
+      relevanceNote: `Supplemental original essay by Scott Aaronson & Boaz Barak (Shtetl-Optimized #7266) defining the decision tree and ${node.title}.`,
+      addedBy: "scottaaronson",
+      createdAt: "2026-11-03T11:05:00Z",
+      source: {
+        id: `src-2050-supp-shtetl-${idx + 1}`,
+        url:
+          node.sourceUrl === "https://scottaaronson.blog/?p=7266"
+            ? "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak"
+            : "https://scottaaronson.blog/?p=7266",
+        sourceType: "Research Supplement",
+        title:
+          node.sourceUrl === "https://scottaaronson.blog/?p=7266"
+            ? "Five Worlds of AI by Scott Aaronson and Boaz Barak (LessWrong Cross-Post & Discussion)"
+            : "Five Worlds of AI — Original Essay (Shtetl-Optimized #7266)",
+        authors: "Scott Aaronson & Boaz Barak",
+        publisher:
+          node.sourceUrl === "https://scottaaronson.blog/?p=7266"
+            ? "LessWrong"
+            : "Shtetl-Optimized (scottaaronson.blog)",
+        publishedAt: "2023-04-27",
+        retrievedAt: "2026-11-03",
+        excerptParaphrase:
+          "Defines the five canonical AI futures (AI-Fizzle, Futurama, AI-Dystopia, Singularia, Paperclipalypse) across three conditional forks.",
+        credibilityNote:
+          "Verified companion article and forum discussion for Five Worlds of AI.",
+        isAiSummarized: false,
+      },
+    };
+    return [primaryLink, supplementalShtetlLink];
+  }),
 ];
 
 export const AI_2050_ARGUMENTS: ArgumentItem[] = [
@@ -1580,6 +1644,11 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalPlatform: "Shtetl-Optimized #7266",
     externalSourceUrl: "https://scottaaronson.blog/?p=7266",
     externalUpvotes: 142,
+    supplementalUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
+    supplementalTitle:
+      "Five Worlds of AI by Scott Aaronson and Boaz Barak (LessWrong Discussion)",
+    supplementalPublisher: "LessWrong",
     reactions: {
       made_me_reconsider: 34,
       taught_me_something: 58,
@@ -1606,6 +1675,9 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalSourceUrl:
       "https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/",
     externalUpvotes: 67,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI — Original Essay by Scott Aaronson & Boaz Barak",
+    supplementalPublisher: "Shtetl-Optimized #7266",
     reactions: {
       made_me_reconsider: 41,
       taught_me_something: 63,
@@ -1631,8 +1703,13 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(Recognizable Civ | No Fizzle) = 71.1%",
     sourceIds: ["src-2050-shtetl-7266"],
     externalPlatform: "LessWrong / Overcoming Bias",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 94,
+    supplementalUrl: "https://www.nber.org/papers/w23928",
+    supplementalTitle:
+      "Artificial Intelligence and Economic Growth (Aghion, Jones & Jones — Baumol Bottlenecks)",
+    supplementalPublisher: "NBER w23928",
     reactions: {
       made_me_reconsider: 46,
       taught_me_something: 52,
@@ -1656,8 +1733,12 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(Singularity Regime | No Fizzle) = 28.9% is too low",
     sourceIds: ["src-2050-lw-five-worlds"],
     externalPlatform: "LessWrong (+186 Karma)",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 186,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI — Original Essay by Scott Aaronson & Boaz Barak",
+    supplementalPublisher: "Shtetl-Optimized #7266",
     reactions: {
       made_me_reconsider: 72,
       taught_me_something: 64,
@@ -1685,6 +1766,9 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalPlatform: "Windows on Theory / Shtetl-Optimized",
     externalSourceUrl: "https://windowsontheory.org/2023/04/27/five-worlds-of-ai/",
     externalUpvotes: 112,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI — Companion Post on Shtetl-Optimized",
+    supplementalPublisher: "Shtetl-Optimized #7266",
     reactions: {
       made_me_reconsider: 29,
       taught_me_something: 48,
@@ -1711,6 +1795,10 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalSourceUrl:
       "https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/",
     externalUpvotes: 78,
+    supplementalUrl: "https://www.nber.org/papers/w32255",
+    supplementalTitle:
+      "Scenarios for the Transition to AGI (Korinek & Suh — Labor Substitution & Inequality)",
+    supplementalPublisher: "NBER w32255",
     reactions: {
       made_me_reconsider: 53,
       taught_me_something: 61,
@@ -1736,8 +1824,13 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(Singularia | Singularity Regime) = 60.7%",
     sourceIds: ["src-2050-lw-five-worlds"],
     externalPlatform: "LessWrong (+134 Karma)",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 134,
+    supplementalUrl:
+      "https://www.lesswrong.com/posts/hvz9qjWyv8cLX9JJR/evolution-provides-no-evidence-for-the-sharp-left-turn",
+    supplementalTitle: "Evolution provides no evidence for the sharp left turn (Quintin Pope)",
+    supplementalPublisher: "LessWrong Essay",
     reactions: {
       made_me_reconsider: 58,
       taught_me_something: 71,
@@ -1761,8 +1854,13 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(Paperclipalypse | Singularity Regime) = 39.3%",
     sourceIds: ["src-2050-lw-five-worlds"],
     externalPlatform: "LessWrong (+119 Karma)",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 119,
+    supplementalUrl: "https://arxiv.org/abs/2401.05566",
+    supplementalTitle:
+      "Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training (Hubinger et al.)",
+    supplementalPublisher: "arXiv:2401.05566",
     reactions: {
       made_me_reconsider: 49,
       taught_me_something: 55,
@@ -1788,8 +1886,12 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(AI-Fizzle) = 3.0%",
     sourceIds: ["src-2050-lw-five-worlds"],
     externalPlatform: "LessWrong (+88 Karma)",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 88,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI — Section 1: AI-Fizzle (Aaronson & Barak)",
+    supplementalPublisher: "Shtetl-Optimized #7266",
     reactions: {
       made_me_reconsider: 37,
       taught_me_something: 62,
@@ -1818,6 +1920,9 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalSourceUrl:
       "https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/",
     externalUpvotes: 92,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI — Section 2: Futurama (Aaronson & Barak)",
+    supplementalPublisher: "Shtetl-Optimized #7266",
     reactions: {
       made_me_reconsider: 68,
       taught_me_something: 84,
@@ -1843,8 +1948,12 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(AI-Dystopia) = 24.0%",
     sourceIds: ["src-2050-shtetl-7266"],
     externalPlatform: "Astral Codex Ten / LessWrong",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 154,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI — Section 3: AI-Dystopia (Aaronson & Barak)",
+    supplementalPublisher: "Shtetl-Optimized #7266",
     reactions: {
       made_me_reconsider: 64,
       taught_me_something: 79,
@@ -1872,6 +1981,11 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalPlatform: "Shtetl-Optimized #7266",
     externalSourceUrl: "https://scottaaronson.blog/?p=7266",
     externalUpvotes: 108,
+    supplementalUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
+    supplementalTitle:
+      "Five Worlds of AI by Scott Aaronson and Boaz Barak (LessWrong Discussion)",
+    supplementalPublisher: "LessWrong",
     reactions: {
       made_me_reconsider: 33,
       taught_me_something: 59,
@@ -1897,8 +2011,13 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(Paperclipalypse) = 11.0% (7% Schemer + 4% Gradual)",
     sourceIds: ["src-2050-lw-five-worlds"],
     externalPlatform: "LessWrong (+162 Karma)",
-    externalSourceUrl: "https://www.lesswrong.com/users/paulfchristiano",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/HBxe6wdjxK239zajf/what-failure-looks-like",
     externalUpvotes: 162,
+    supplementalUrl: "https://arxiv.org/abs/2501.16946",
+    supplementalTitle:
+      "Gradual Disempowerment: Systemic Existential Risks from Incremental AI Development (Kulveit et al., 2025)",
+    supplementalPublisher: "arXiv:2501.16946",
     reactions: {
       made_me_reconsider: 77,
       taught_me_something: 91,
@@ -1924,8 +2043,13 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(Agentic & RL Breakthroughs) = 97%",
     sourceIds: ["src-2050-lw-five-worlds"],
     externalPlatform: "LessWrong (+109 Karma)",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 109,
+    supplementalUrl: "https://arxiv.org/abs/2503.14499",
+    supplementalTitle:
+      "Measuring AI Ability to Complete Long Tasks (Kwa et al. — METR 7-Month Horizon Doubling)",
+    supplementalPublisher: "arXiv:2503.14499",
     reactions: {
       made_me_reconsider: 39,
       taught_me_something: 68,
@@ -1949,8 +2073,13 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(Bounded Tool Absorption | No Fizzle) = 71.1%",
     sourceIds: ["src-2050-shtetl-7266"],
     externalPlatform: "Overcoming Bias / LessWrong",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 84,
+    supplementalUrl: "https://www.nber.org/papers/w23928",
+    supplementalTitle:
+      "Artificial Intelligence and Economic Growth (Aghion, Jones & Jones)",
+    supplementalPublisher: "NBER w23928",
     reactions: {
       made_me_reconsider: 42,
       taught_me_something: 57,
@@ -1976,6 +2105,9 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalPlatform: "Astral Codex Ten",
     externalSourceUrl: "https://ai-2027.com/",
     externalUpvotes: 131,
+    supplementalUrl: "https://ai-2027.com/research/takeoff-forecast",
+    supplementalTitle: "AI 2027 Takeoff Supplement — Closed-Loop AI R&D Acceleration",
+    supplementalPublisher: "ai-2027.com",
     reactions: {
       made_me_reconsider: 55,
       taught_me_something: 74,
@@ -1999,8 +2131,12 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(OOD Ceiling | AI-Fizzle) = 56%",
     sourceIds: ["src-2050-lw-five-worlds"],
     externalPlatform: "LessWrong (+74 Karma)",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 74,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI — Original Essay (Aaronson & Barak)",
+    supplementalPublisher: "Shtetl-Optimized #7266",
     reactions: {
       made_me_reconsider: 31,
       taught_me_something: 49,
@@ -2027,6 +2163,10 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalSourceUrl:
       "https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/",
     externalUpvotes: 62,
+    supplementalUrl: "https://arxiv.org/abs/2408.14906",
+    supplementalTitle:
+      "Can AI Scaling Continue Through 2030? Power, Chip & Data Constraints (Epoch AI)",
+    supplementalPublisher: "arXiv:2408.14906",
     reactions: {
       made_me_reconsider: 29,
       taught_me_something: 44,
@@ -2052,6 +2192,10 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalPlatform: "Astral Codex Ten / AI 2040",
     externalSourceUrl: "https://ai-2040.com/",
     externalUpvotes: 118,
+    supplementalUrl: "https://www.nber.org/papers/w32255",
+    supplementalTitle:
+      "Scenarios for the Transition to AGI (Korinek & Suh — Capital Taxation & Dividends)",
+    supplementalPublisher: "NBER w32255",
     reactions: {
       made_me_reconsider: 44,
       taught_me_something: 69,
@@ -2077,6 +2221,9 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalPlatform: "Windows on Theory",
     externalSourceUrl: "https://windowsontheory.org/2023/04/27/five-worlds-of-ai/",
     externalUpvotes: 95,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI — Original Essay on Shtetl-Optimized",
+    supplementalPublisher: "Shtetl-Optimized #7266",
     reactions: {
       made_me_reconsider: 38,
       taught_me_something: 63,
@@ -2102,6 +2249,11 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalPlatform: "Shtetl-Optimized #7266",
     externalSourceUrl: "https://scottaaronson.blog/?p=7266",
     externalUpvotes: 127,
+    supplementalUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
+    supplementalTitle:
+      "Five Worlds of AI by Scott Aaronson and Boaz Barak (LessWrong Discussion)",
+    supplementalPublisher: "LessWrong",
     reactions: {
       made_me_reconsider: 59,
       taught_me_something: 71,
@@ -2128,6 +2280,9 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     externalSourceUrl:
       "https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/",
     externalUpvotes: 73,
+    supplementalUrl: "https://www.nber.org/papers/w32487",
+    supplementalTitle: "The Simple Macroeconomics of AI (Daron Acemoglu, MIT / NBER)",
+    supplementalPublisher: "NBER w32487",
     reactions: {
       made_me_reconsider: 45,
       taught_me_something: 52,
@@ -2151,8 +2306,12 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(Benevolent Caretaker ASI | Singularia) = 59%",
     sourceIds: ["src-2050-lw-five-worlds"],
     externalPlatform: "LessWrong (+97 Karma)",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 97,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI — Section 4: Singularia (Aaronson & Barak)",
+    supplementalPublisher: "Shtetl-Optimized #7266",
     reactions: {
       made_me_reconsider: 41,
       taught_me_something: 56,
@@ -2176,8 +2335,12 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(Neural Merge & Uploads | Singularia) = 41%",
     sourceIds: ["src-2050-lw-five-worlds"],
     externalPlatform: "Overcoming Bias / LessWrong",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 82,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI — Original Essay (Aaronson & Barak)",
+    supplementalPublisher: "Shtetl-Optimized #7266",
     reactions: {
       made_me_reconsider: 36,
       taught_me_something: 60,
@@ -2201,8 +2364,13 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(Schemer Takeover | Paperclipalypse) = 64%",
     sourceIds: ["src-2050-lw-five-worlds"],
     externalPlatform: "LessWrong (+204 Karma)",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 204,
+    supplementalUrl:
+      "https://www.lesswrong.com/posts/uMQ3cqWDPHhjtiesc/agi-ruin-a-list-of-lethalities",
+    supplementalTitle: "AGI Ruin: A List of Lethalities (Eliezer Yudkowsky)",
+    supplementalPublisher: "LessWrong",
     reactions: {
       made_me_reconsider: 81,
       taught_me_something: 75,
@@ -2226,8 +2394,13 @@ export const AI_2050_ARGUMENTS: ArgumentItem[] = [
     targetAssumption: "P(Gradual Disempowerment | Paperclipalypse) = 36%",
     sourceIds: ["src-2050-lw-five-worlds"],
     externalPlatform: "LessWrong (+148 Karma)",
-    externalSourceUrl: "https://www.lesswrong.com/users/paulfchristiano",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/HBxe6wdjxK239zajf/what-failure-looks-like",
     externalUpvotes: 148,
+    supplementalUrl: "https://arxiv.org/abs/2501.16946",
+    supplementalTitle:
+      "Gradual Disempowerment: Systemic Existential Risks from Incremental AI Development (Kulveit et al., 2025)",
+    supplementalPublisher: "arXiv:2501.16946",
     reactions: {
       made_me_reconsider: 69,
       taught_me_something: 88,
@@ -2250,6 +2423,9 @@ export const AI_2050_COMMENTS: CommentItem[] = [
     externalSourceUrl:
       "https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/",
     externalUpvotes: 45,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI (Shtetl-Optimized #7266)",
+    supplementalPublisher: "scottaaronson.blog",
     body: "Reminder on resolution criteria: Every January, our panel votes on whether the world has clearly entered one of the 5 AI worlds. It takes TWO consecutive unanimous annual votes to resolve before 2050; otherwise a simple majority in 2050 picks whichever world reality is closest to.",
     createdAt: "2026-09-15T10:00:00Z",
   },
@@ -2276,8 +2452,12 @@ export const AI_2050_COMMENTS: CommentItem[] = [
     authorName: "Zvi Mowshowitz (LessWrong)",
     authorType: "human",
     externalPlatform: "LessWrong",
-    externalSourceUrl: "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+    externalSourceUrl:
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
     externalUpvotes: 54,
+    supplementalUrl: "https://scottaaronson.blog/?p=7266",
+    supplementalTitle: "Five Worlds of AI (Shtetl-Optimized #7266)",
+    supplementalPublisher: "scottaaronson.blog",
     body: "The biggest tension in the Metaculus numbers is between 'FIRST come to pass' and 'ultimate 2050 state'. Many forecasters put 45% on Futurama because we hit Futurama first in ~2031–2034, even if they think Singularia or Paperclipalypse follows 5 years later!",
     createdAt: "2026-09-25T11:30:00Z",
   },
@@ -2315,6 +2495,7 @@ export const AI_2050_FORECAST_EVENTS: ForecastEvent[] = [
       "Metaculus #20683 resolves to the FIRST AI world to achieve two consecutive unanimous annual panel votes before 2050. Because transformative tool-AI abundance (Futurama) arrives at lower capability thresholds than full post-biological Singularia, Futurama captures ~45% first-passage probability.",
     citedUrls: [
       "https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/",
+      "https://scottaaronson.blog/?p=7266",
     ],
     assumptions: [
       "P(No AI-Fizzle) = 97%",
@@ -2343,7 +2524,8 @@ export const AI_2050_FORECAST_EVENTS: ForecastEvent[] = [
     rationale:
       "While unconditional x-risk by 2050 is higher in my personal model (~18%), Metaculus #20683 resolves to the FIRST world reached; some worlds that pass through 3+ years of Futurama or AI-Dystopia first will resolve there before a late-2030s Singularity/Paperclipalypse.",
     citedUrls: [
-      "https://www.lesswrong.com/posts/j9Q8bR2K5hM3nX7wP/five-worlds-of-ai",
+      "https://www.lesswrong.com/posts/Kfr7PgXRQow9kbGx7/five-worlds-of-ai-by-scott-aaronson-and-boaz-barak",
+      "https://scottaaronson.blog/?p=7266",
     ],
     assumptions: [
       "First-passage resolution discounts late-arriving singularity worlds",
