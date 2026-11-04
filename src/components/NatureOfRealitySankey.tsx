@@ -90,8 +90,17 @@ function formatFlowDecimal(prob: number): string {
 /**
  * Corridor-aware Sankey layout engine that preserves the exact uncrossed Flourish
  * visual topology while scaling every bar and ribbon dynamically with user probabilities.
+ * When `magnifiedLineage` is active (user clicked a node), dynamically boosts the bar height
+ * and ribbon thickness of all forward & backward connected branches across all columns!
  */
-function buildFlourishSankeyLayout(graph: ComputedRealityGraph): {
+function buildFlourishSankeyLayout(
+  graph: ComputedRealityGraph,
+  magnifiedLineage: {
+    focusNodeId: string;
+    nodeIds: Set<string>;
+    linkIds: Set<string>;
+  } | null = null
+): {
   nodeBoxes: Map<string, SankeyNodeBox>;
   ribbons: SankeyLinkRibbon[];
 } {
@@ -135,26 +144,57 @@ function buildFlourishSankeyLayout(graph: ComputedRealityGraph): {
       // Align Col 3 below the Eternal Non-existence top corridor
       const eternalNonEx = graph.nodeMap.get("nor-c2-eternal-nonexistence");
       const topBypassHeight = (eternalNonEx?.probability ?? 0.73) * scaleFactor;
-      cursorY = clamp(TOP_BASE_Y + topBypassHeight + 28, 220, 465);
+      cursorY = magnifiedLineage
+        ? clamp(TOP_BASE_Y + topBypassHeight * 0.6 + 24, 150, 380)
+        : clamp(TOP_BASE_Y + topBypassHeight + 28, 220, 465);
     } else if (col === 4) {
       // Align Col 4 with the lower simulation wake-up corridor
       const passiveSim = nodeBoxes.get("nor-c3-passive-simulation");
-      cursorY = passiveSim ? clamp(passiveSim.y0 - 8, 320, 555) : 548;
+      cursorY = passiveSim
+        ? clamp(passiveSim.y0 - 8, 220, 520)
+        : magnifiedLineage
+        ? 360
+        : 548;
     } else if (col === 5) {
       cursorY = TOP_BASE_Y + 58;
     } else if (col === 6) {
       cursorY = TOP_BASE_Y + 38;
     }
 
-    for (const node of colNodes) {
+    // Compute raw heights (with dynamic magnification for connected branches when magnifiedLineage is active)
+    const computedHeights = colNodes.map((node) => {
       const rawH = node.probability * scaleFactor;
-      const height =
-        node.probability <= 1e-6 ? 1.5 : Math.max(3.2, Number(rawH.toFixed(2)));
+      if (node.probability <= 1e-6) return 1.5;
+      if (!magnifiedLineage) {
+        return Math.max(3.2, Number(rawH.toFixed(2)));
+      }
+      const isFocused = magnifiedLineage.focusNodeId === node.id;
+      const isConnected = magnifiedLineage.nodeIds.has(node.id);
+      if (isFocused) {
+        return Math.max(32, Math.min(280, rawH * 1.9));
+      }
+      if (isConnected) {
+        // Dynamically magnify small connected branches so 0.8%-2% branches become 22px-36px tall!
+        return Math.max(22, Math.min(240, rawH * 1.65));
+      }
+      // Gently compress unconnected branches so connected branches have breathing room
+      return Math.max(3.0, rawH * 0.55);
+    });
+
+    // Ensure the column never overflows the 775px bottom canvas margin
+    const totalPad = Math.max(0, (colNodes.length - 1) * pad);
+    const maxAvailSpan = Math.max(220, 772 - cursorY - totalPad);
+    const sumHeights = computedHeights.reduce((a, b) => a + b, 0);
+    const fitScale = sumHeights > maxAvailSpan ? maxAvailSpan / sumHeights : 1;
+
+    colNodes.forEach((node, idx) => {
+      const height = Math.max(
+        2.5,
+        Number((computedHeights[idx] * fitScale).toFixed(2))
+      );
       const y0 = cursorY;
       const y1 = y0 + height;
 
-      // In Flourish, Col 0..5 labels sit to the right of the node bar, or Col 6 sits inside/left if near edge.
-      // With our generous 1840px viewBox, Col 0 has label on left or right, and Col 6 has plenty of room on the right!
       const labelOnRight = col < 6;
       nodeBoxes.set(node.id, {
         id: node.id,
@@ -169,7 +209,7 @@ function buildFlourishSankeyLayout(graph: ComputedRealityGraph): {
       });
 
       cursorY = y1 + pad;
-    }
+    });
   }
 
   // Now compute ribbon vertical slicing within each source and target node bar
@@ -257,8 +297,15 @@ function buildFlourishSankeyLayout(graph: ComputedRealityGraph): {
     const syCenter = sInfo.cy;
     const tyCenter = tInfo.cy;
     const rawW = link.flow * scaleFactor;
+    const isConnLink = magnifiedLineage?.linkIds.has(link.id) ?? false;
     const width =
-      link.flow <= 1e-6 ? 0.4 : Math.max(1.1, Number(rawW.toFixed(2)));
+      link.flow <= 1e-6
+        ? 0.4
+        : isConnLink
+        ? Math.max(4.2, Math.min(sourceBox.height, targetBox.height, rawW * 1.6))
+        : magnifiedLineage
+        ? Math.max(0.8, Number((rawW * 0.55).toFixed(2)))
+        : Math.max(1.1, Number(rawW.toFixed(2)));
 
     const pathD = `M ${x0.toFixed(2)},${syCenter.toFixed(2)} C ${xMid.toFixed(
       2
@@ -318,10 +365,13 @@ export function NatureOfRealitySankey() {
     null
   );
 
-  // Selection & Hover state
+  // Selection, Hover & Dynamic Lineage Magnification state
   const [selectedNodeId, setSelectedNodeId] = useState<string>(
     "nor-c0-multiverse"
   );
+  const [focusedLineageNodeId, setFocusedLineageNodeId] = useState<
+    string | null
+  >(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredLinkId, setHoveredLinkId] = useState<string | null>(null);
 
@@ -363,6 +413,7 @@ export function NatureOfRealitySankey() {
   const svgContainerRef = useRef<HTMLDivElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const didPanDuringDragRef = useRef<boolean>(false);
 
   // Compute complete Sankey graph
   const graph = useMemo(
@@ -381,9 +432,46 @@ export function NatureOfRealitySankey() {
     ]
   );
 
+  // Compute forward & backward connected lineage for a clicked `focusedLineageNodeId`
+  const clickedMagnifiedLineage = useMemo(() => {
+    if (!focusedLineageNodeId) return null;
+    const nodeIds = new Set<string>([focusedLineageNodeId]);
+    const linkIds = new Set<string>();
+
+    const upQueue = [focusedLineageNodeId];
+    while (upQueue.length > 0) {
+      const curr = upQueue.shift()!;
+      for (const l of graph.links) {
+        if (l.targetId === curr && l.flow > 1e-6) {
+          linkIds.add(l.id);
+          if (!nodeIds.has(l.sourceId)) {
+            nodeIds.add(l.sourceId);
+            upQueue.push(l.sourceId);
+          }
+        }
+      }
+    }
+
+    const downQueue = [focusedLineageNodeId];
+    while (downQueue.length > 0) {
+      const curr = downQueue.shift()!;
+      for (const l of graph.links) {
+        if (l.sourceId === curr && l.flow > 1e-6) {
+          linkIds.add(l.id);
+          if (!nodeIds.has(l.targetId)) {
+            nodeIds.add(l.targetId);
+            downQueue.push(l.targetId);
+          }
+        }
+      }
+    }
+
+    return { focusNodeId: focusedLineageNodeId, nodeIds, linkIds };
+  }, [focusedLineageNodeId, graph]);
+
   const { nodeBoxes, ribbons } = useMemo(
-    () => buildFlourishSankeyLayout(graph),
-    [graph]
+    () => buildFlourishSankeyLayout(graph, clickedMagnifiedLineage),
+    [graph, clickedMagnifiedLineage]
   );
 
   const selectedNode = useMemo(
@@ -396,8 +484,8 @@ export function NatureOfRealitySankey() {
     [graph, conditionedNodeId]
   );
 
-  // Compute connected upstream + downstream lineage for hover or selection
-  const activeFocusNodeId = hoveredNodeId ?? (tourEpochIndex === null ? null : null);
+  // Compute connected upstream + downstream lineage for hover or clicked focus
+  const activeFocusNodeId = hoveredNodeId ?? focusedLineageNodeId;
 
   const highlightedLineage = useMemo(() => {
     if (hoveredLinkId) {
@@ -1439,6 +1527,8 @@ export function NatureOfRealitySankey() {
                 selectedNodeId={selectedNodeId}
                 conditionedNodeId={conditionedNodeId}
                 hoveredNodeId={hoveredNodeId}
+                focusedLineageNodeId={focusedLineageNodeId}
+                onChangeFocusedLineageNodeId={setFocusedLineageNodeId}
                 onSelectNode={(id) => setSelectedNodeId(id)}
                 onHoverNode={(id) => setHoveredNodeId(id)}
                 onSwitchToSankey={() => setStudioMode("split")}
@@ -1667,7 +1757,12 @@ export function NatureOfRealitySankey() {
                               key={node.id}
                               onMouseEnter={() => setHoveredNodeId(node.id)}
                               onMouseLeave={() => setHoveredNodeId(null)}
-                              onClick={() => setSelectedNodeId(node.id)}
+                              onClick={() => {
+                                setSelectedNodeId(node.id);
+                                setFocusedLineageNodeId((prev) =>
+                                  prev === node.id ? null : node.id
+                                );
+                              }}
                               className={`cursor-pointer rounded-xl border p-3 transition-all ${
                                 isSelected
                                   ? isLightCanvas
@@ -1877,12 +1972,16 @@ export function NatureOfRealitySankey() {
                 return;
               }
               setIsDragging(true);
+              didPanDuringDragRef.current = false;
               dragStartRef.current = { x: e.clientX, y: e.clientY };
             }}
             onMouseMove={(e) => {
               if (!isDragging || !dragStartRef.current) return;
               const dx = e.clientX - dragStartRef.current.x;
               const dy = e.clientY - dragStartRef.current.y;
+              if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                didPanDuringDragRef.current = true;
+              }
               dragStartRef.current = { x: e.clientX, y: e.clientY };
               setCamera((prev) => ({
                 ...prev,
@@ -1898,6 +1997,14 @@ export function NatureOfRealitySankey() {
               setIsDragging(false);
               dragStartRef.current = null;
             }}
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest("[data-floating-ui]")) {
+                return;
+              }
+              if (!didPanDuringDragRef.current && focusedLineageNodeId) {
+                setFocusedLineageNodeId(null);
+              }
+            }}
             className={`relative flex-1 min-h-[380px] overflow-hidden transition-colors duration-300 ${
               isDragging ? "cursor-grabbing" : "cursor-grab"
             } ${
@@ -1906,6 +2013,41 @@ export function NatureOfRealitySankey() {
                 : "bg-[#070b14] text-slate-100"
             }`}
           >
+            {/* Active Lineage Magnification Floating Pill on Sankey Canvas */}
+            {focusedLineageNodeId && (
+              <div
+                data-floating-ui
+                className={`absolute top-3 left-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border px-3 py-1.5 text-xs shadow-xl backdrop-blur-md ${
+                  isLightCanvas
+                    ? "border-indigo-300 bg-white/95 text-slate-900"
+                    : "border-indigo-500/50 bg-slate-950/95 text-slate-100"
+                }`}
+              >
+                <span className="rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white keep-white">
+                  Lineage Magnified
+                </span>
+                <span>
+                  <strong>
+                    {graph.nodeMap.get(focusedLineageNodeId)?.name}
+                  </strong>{" "}
+                  (
+                  {formatPct(
+                    graph.nodeMap.get(focusedLineageNodeId)?.probability ?? 0,
+                    1
+                  )}{" "}
+                  overall) — connected forward &amp; backward branches expanded
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setFocusedLineageNodeId(null)}
+                  className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-indigo-500 keep-white"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  <span>Restore Normal Scale (Click Off)</span>
+                </button>
+              </div>
+            )}
+
             {/* Interactive SVG Sankey Diagram */}
             <svg
               role="img"
@@ -2141,6 +2283,9 @@ export function NatureOfRealitySankey() {
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedNodeId(node.id);
+                        setFocusedLineageNodeId((prev) =>
+                          prev === node.id ? null : node.id
+                        );
                       }}
                       className="cursor-pointer transition-opacity duration-150"
                     >
