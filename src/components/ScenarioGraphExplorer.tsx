@@ -42,6 +42,7 @@ import {
   AI_2050_SIMPLE_RIVER_SPECS,
   AI_2050_SIMPLE_TIMELINE_COLS,
 } from "@/data/ai2050-seed";
+import { resolveRiverLabelPlacements } from "@/lib/river-layout";
 
 /**
  * Definition of a node in the continuous Branching Probability River.
@@ -89,7 +90,7 @@ function splitIntoTwoLines(text: string, maxChars = 17): string[] {
   ];
 }
 
-const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
+export const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
   // 0. Root (Mid 2025) — 100% Starting Point
   {
     id: "river-2025-start",
@@ -269,8 +270,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2029",
     track: "race",
     defaultConditionalProb: 0.86,
-    x: 1625,
-    y: 110,
+    x: 1615,
+    y: 118,
     labelPosition: "top",
   },
   {
@@ -281,8 +282,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2029",
     track: "offramp",
     defaultConditionalProb: 0.14,
-    x: 1625,
-    y: 215,
+    x: 1615,
+    y: 225,
     labelPosition: "bottom",
   },
   {
@@ -294,8 +295,8 @@ const RIVER_TREE_SPECS: RiverBranchNodeSpec[] = [
     track: "race",
     defaultConditionalProb: 1.0,
     x: 1765,
-    y: 108,
-    labelPosition: "top",
+    y: 118,
+    labelPosition: "bottom",
   },
 
   // ============================================================================
@@ -742,21 +743,33 @@ export function ScenarioGraphExplorer({
         if (s.id === "r2040-plancd-race")
           return lensShiftMultiplier.plancd2040;
         // AI 2050 lens shifts (Simple & Comprehensive)
-        if (s.id === "s2050-fizzle-yes" || s.id === "c2050-fizzle-end")
+        if (s.id === "r2050-s-end-fizzle" || s.id === "r2050-c-end-fizzle")
           return lensShiftMultiplier.fizzle2050;
-        if (s.id === "s2050-fizzle-no" || s.id === "c2050-why-no-fizzle")
+        if (s.id === "r2050-s-q2-civ" || s.id === "r2050-c-mid-tai")
           return 1 - lensShiftMultiplier.fizzle2050;
-        if (s.id === "s2050-civ-yes" || s.id === "c2050-why-civ-holds")
+        if (s.id === "r2050-s-q3a-good" || s.id === "r2050-c-mid-bounded")
           return lensShiftMultiplier.recCiv2050;
-        if (s.id === "s2050-civ-no" || s.id === "c2050-why-civ-breaks")
+        if (s.id === "r2050-s-q3b-good" || s.id === "r2050-c-mid-explosion")
           return 1 - lensShiftMultiplier.recCiv2050;
-        if (s.id === "s2050-futurama" || s.id === "c2050-futurama")
+        if (
+          s.id === "r2050-s-end-futurama" ||
+          s.id === "r2050-c-end-futurama"
+        )
           return lensShiftMultiplier.futurama2050;
-        if (s.id === "s2050-dystopia" || s.id === "c2050-dystopia")
+        if (
+          s.id === "r2050-s-end-dystopia" ||
+          s.id === "r2050-c-end-dystopia"
+        )
           return 1 - lensShiftMultiplier.futurama2050;
-        if (s.id === "s2050-singularia" || s.id === "c2050-singularia")
+        if (
+          s.id === "r2050-s-end-singularia" ||
+          s.id === "r2050-c-end-singularia"
+        )
           return lensShiftMultiplier.singularia2050;
-        if (s.id === "s2050-paperclip" || s.id === "c2050-paperclip")
+        if (
+          s.id === "r2050-s-end-paperclip" ||
+          s.id === "r2050-c-end-paperclip"
+        )
           return 1 - lensShiftMultiplier.singularia2050;
         return s.defaultConditionalProb;
       });
@@ -785,6 +798,25 @@ export function ScenarioGraphExplorer({
       isTerminalOutcome: !childrenByParent.has(spec.id),
     }));
   }, [activeRiverSpecs, conditionalOverrides, lensShiftMultiplier]);
+
+  const resolvedLabelPlacements = useMemo(() => {
+    const summaryMap = new Map<
+      string,
+      { topHandle?: string; topUpvotes?: number }
+    >();
+    for (const [k, v] of debateSummaryByCanonicalId.entries()) {
+      summaryMap.set(k, {
+        topHandle: v.topHandle ?? undefined,
+        topUpvotes: v.topUpvotes ?? undefined,
+      });
+    }
+    return resolveRiverLabelPlacements(computedRiverNodes, summaryMap, {
+      viewBoxWidth: FULL_VIEWBOX.w,
+      viewBoxHeight: FULL_VIEWBOX.h,
+      headerSafeTopY: 62,
+      footerSafeBottomY: 676,
+    });
+  }, [computedRiverNodes, debateSummaryByCanonicalId]);
 
   const riverNodeMap = useMemo(
     () => new Map(computedRiverNodes.map((n) => [n.id, n])),
@@ -2268,7 +2300,7 @@ export function ScenarioGraphExplorer({
                   );
                 })}
 
-                {/* 2. Render Sleek Junction Nodes & Probability-Proportional Labels */}
+                {/* 2. Render Sleek Junction Nodes & Non-Overlapping 2-Tier Labels */}
                 {computedRiverNodes.map((node) => {
                   const isHighlighted =
                     highlightedRiverIds === null ||
@@ -2281,18 +2313,23 @@ export function ScenarioGraphExplorer({
                     selectedNeighborhood?.nextNodes.some(
                       (nx) => nx.id === node.id
                     ) ?? false;
-                  const isForkHub =
-                    node.id === "river-2027-oct-fork" ||
-                    node.id === "r2040-2029-crossroads" ||
-                    node.id === "r2050-s-q1-fizzle" ||
-                    node.id === "r2050-s-q2-civ" ||
-                    node.id === "r2050-s-q3a-good" ||
-                    node.id === "r2050-s-q3b-good" ||
-                    node.id === "r2050-c-q1-fizzle" ||
-                    node.id === "r2050-c-q2-civ" ||
-                    node.id === "r2050-c-q3a-good" ||
-                    node.id === "r2050-c-q3b-good";
-                  const isSideBranch = node.track === "offramp";
+                  const layout = resolvedLabelPlacements.get(node.id);
+                  if (!layout) return null;
+
+                  const {
+                    textAnchor,
+                    anchorX,
+                    titleLines,
+                    titleFontSize,
+                    subFontSize,
+                    lineHeight,
+                    titleFirstLineY,
+                    metaY,
+                    radius,
+                    isForkHub,
+                    isSideBranch,
+                  } = layout;
+
                   const debateSummary = debateSummaryByCanonicalId.get(
                     node.canonicalNodeId
                   );
@@ -2300,64 +2337,6 @@ export function ScenarioGraphExplorer({
                   const overallPct = Math.round(node.overallProb * 100);
                   const condPct = Math.round(node.conditionalProb * 100);
                   const palette = trackColors[node.track];
-
-                  // Node circle radius scales with probability
-                  const radius = isForkHub
-                    ? 14
-                    : isSideBranch
-                    ? Math.max(
-                        4.5,
-                        Math.min(10, Math.round(4 + node.overallProb * 14))
-                      )
-                    : Math.max(
-                        6.5,
-                        Math.min(15, Math.round(5.5 + node.overallProb * 10))
-                      );
-
-                  // Probability-proportional font size: side branches have smaller text scaled by their probability
-                  const titleFontSize = isForkHub
-                    ? 13
-                    : isSideBranch
-                    ? Number(
-                        (8.4 + Math.min(0.32, node.overallProb) * 6.5).toFixed(
-                          1
-                        )
-                      )
-                    : Number(
-                        (10.8 + Math.min(0.6, node.overallProb) * 2.8).toFixed(
-                          1
-                        )
-                      );
-
-                  const subFontSize = isSideBranch
-                    ? Number(
-                        (7.6 + Math.min(0.3, node.overallProb) * 3.8).toFixed(1)
-                      )
-                    : 9.8;
-
-                  const labelAbove = node.labelPosition !== "bottom";
-                  const titleLines = splitIntoTwoLines(node.shortName, 17);
-                  const lineHeight = Math.round(titleFontSize * 1.18);
-
-                  // Collision-proof vertical anchoring:
-                  // - When labelAbove: anchor from the top of the circle upward so multi-line titles expand UPWARD away from the branch
-                  // - When !labelAbove: anchor from the bottom of the circle downward so multi-line titles expand DOWNWARD away from the branch
-                  const probY = labelAbove
-                    ? -(radius + (isSideBranch ? 8 : 10))
-                    : radius +
-                      (isSideBranch ? 14 : 17) +
-                      (titleLines.length - 1) * lineHeight +
-                      (isSideBranch ? 11.5 : 13.5);
-
-                  const titleFirstLineY = labelAbove
-                    ? probY -
-                      (isSideBranch ? 12 : 14) -
-                      (titleLines.length - 1) * lineHeight
-                    : radius + (isSideBranch ? 14 : 17);
-
-                  const roleTagY = labelAbove
-                    ? titleFirstLineY - 12
-                    : probY + 13;
 
                   const roleTag = isSelected
                     ? "● SELECTED"
@@ -2367,6 +2346,7 @@ export function ScenarioGraphExplorer({
                     ? "NEXT →"
                     : (isHovered ||
                         !isSideBranch ||
+                        node.isTerminalOutcome ||
                         activeScenarioSlug === "ai-2050") &&
                       debateSummary?.topHandle
                     ? `@${debateSummary.topHandle}${
@@ -2384,6 +2364,11 @@ export function ScenarioGraphExplorer({
                     isNextNode ||
                     (highlightedRiverIds !== null &&
                       highlightedRiverIds.has(node.id));
+
+                  const probReadout =
+                    showDetailedSplitOnNode && node.parentId && condPct < 100
+                      ? `${overallPct}% (${condPct}% split)`
+                      : `${overallPct}%`;
 
                   return (
                     <g
@@ -2410,7 +2395,7 @@ export function ScenarioGraphExplorer({
                       style={{
                         opacity: isHighlighted
                           ? isSideBranch && !showDetailedSplitOnNode
-                            ? 0.82
+                            ? 0.85
                             : 1
                           : 0.16,
                         transition: "opacity 180ms ease",
@@ -2467,46 +2452,18 @@ export function ScenarioGraphExplorer({
                         fill={palette.nodeFill}
                       />
 
-                      {/* Probability-Proportional Multi-Line Floating Label */}
+                      {/* Collision-Solved 2-Tier Label (Tier 1: Title, Tier 2: Unified Probability + Forum Voice) */}
                       <g>
-                        {roleTag && (
-                          <text
-                            x={0}
-                            y={roleTagY}
-                            textAnchor="middle"
-                            fill={
-                              isSelected
-                                ? isLightMode
-                                  ? "#b45309"
-                                  : "#fbbf24"
-                                : isLightMode
-                                ? "#334155"
-                                : "#94a3b8"
-                            }
-                            fontSize={8.5}
-                            fontWeight={800}
-                            fontFamily="monospace"
-                            letterSpacing="0.06em"
-                            paintOrder="stroke"
-                            stroke={isLightMode ? "#f8f6f0" : "#070b12"}
-                            strokeWidth={3.5}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            {roleTag}
-                          </text>
-                        )}
-
-                        {/* Node Short Name (auto-wrapped to max 2 lines, sized by probability) */}
+                        {/* Tier 1: Node Short Name */}
                         <text
-                          x={0}
+                          x={anchorX}
                           y={titleFirstLineY}
-                          textAnchor="middle"
+                          textAnchor={textAnchor}
                           fill={
                             isSideBranch
                               ? isLightMode
                                 ? "#475569"
-                                : "#94a3b8"
+                                : "#cbd5e1"
                               : isLightMode
                               ? "#0f172a"
                               : "#ffffff"
@@ -2521,14 +2478,14 @@ export function ScenarioGraphExplorer({
                           }
                           paintOrder="stroke"
                           stroke={isLightMode ? "#f8f6f0" : "#070b12"}
-                          strokeWidth={isSideBranch ? 3 : 4}
+                          strokeWidth={isSideBranch ? 3.2 : 4}
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
                           {titleLines.map((line, lIdx) => (
                             <tspan
                               key={lIdx}
-                              x={0}
+                              x={anchorX}
                               dy={lIdx === 0 ? 0 : lineHeight}
                             >
                               {line}
@@ -2536,26 +2493,38 @@ export function ScenarioGraphExplorer({
                           ))}
                         </text>
 
-                        {/* Clean Probability Readout: concise by default, split math when clicked/hovered */}
+                        {/* Tier 2: Unified Probability + Forum Handle Badge on a Single Compact Line */}
                         <text
-                          x={0}
-                          y={probY}
-                          textAnchor="middle"
-                          fill={palette.text}
+                          x={anchorX}
+                          y={metaY}
+                          textAnchor={textAnchor}
                           fontSize={subFontSize}
                           fontWeight={700}
                           fontFamily="monospace"
                           paintOrder="stroke"
                           stroke={isLightMode ? "#f8f6f0" : "#070b12"}
-                          strokeWidth={3}
+                          strokeWidth={3.2}
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
-                          {showDetailedSplitOnNode &&
-                          node.parentId &&
-                          condPct < 100
-                            ? `${overallPct}% (${condPct}% split)`
-                            : `${overallPct}%`}
+                          <tspan fill={palette.text}>{probReadout}</tspan>
+                          {roleTag && (
+                            <tspan
+                              fill={
+                                isSelected
+                                  ? isLightMode
+                                    ? "#b45309"
+                                    : "#fbbf24"
+                                  : isLightMode
+                                  ? "#475569"
+                                  : "#94a3b8"
+                              }
+                              fontSize={Math.max(7.8, subFontSize - 0.8)}
+                              fontWeight={600}
+                            >
+                              {` · ${roleTag}`}
+                            </tspan>
+                          )}
                         </text>
                       </g>
                     </g>

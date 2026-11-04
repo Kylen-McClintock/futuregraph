@@ -624,5 +624,114 @@ describe("FutureGraph AI 2027 Canonical Dataset & Store Integration Tests", () =
       }
     }
   });
+
+  it("Test: River Tree Layout Solver guarantees zero label-to-label or label-to-circle bounding-box overlaps across all 4 scenario trees", async () => {
+    const { resolveRiverLabelPlacements, boxIntersectionArea } = await import("../river-layout");
+    const { RIVER_TREE_SPECS } = await import("@/components/ScenarioGraphExplorer");
+    const { SEED_ARGUMENTS, SEED_COMMENTS } = await import("@/data/ai2027-seed");
+    const { AI_2040_RIVER_SPECS, AI_2040_ARGUMENTS, AI_2040_COMMENTS } = await import("@/data/ai2040-seed");
+    const {
+      AI_2050_SIMPLE_RIVER_SPECS,
+      AI_2050_COMPREHENSIVE_RIVER_SPECS,
+      AI_2050_ARGUMENTS,
+      AI_2050_COMMENTS,
+    } = await import("@/data/ai2050-seed");
+
+    const trees = [
+      { name: "AI 2027", specs: RIVER_TREE_SPECS, args: SEED_ARGUMENTS },
+      { name: "AI 2040", specs: AI_2040_RIVER_SPECS, args: AI_2040_ARGUMENTS },
+      { name: "AI 2050 Simple", specs: AI_2050_SIMPLE_RIVER_SPECS, args: AI_2050_ARGUMENTS },
+      { name: "AI 2050 Comprehensive", specs: AI_2050_COMPREHENSIVE_RIVER_SPECS, args: AI_2050_ARGUMENTS },
+    ];
+
+    for (const tree of trees) {
+      const parentSet = new Set(tree.specs.map((s) => s.parentId).filter(Boolean));
+      const overallMap = new Map<string, number>();
+      for (const s of tree.specs) {
+        if (!s.parentId) {
+          overallMap.set(s.id, 1.0);
+        } else {
+          const p = overallMap.get(s.parentId) ?? 1.0;
+          overallMap.set(s.id, p * s.defaultConditionalProb);
+        }
+      }
+
+      const debateMap = new Map<string, { topHandle?: string; topUpvotes?: number }>();
+      for (const spec of tree.specs) {
+        const topArg = tree.args
+          .filter((a) => a.nodeId === spec.canonicalNodeId)
+          .sort((a, b) => (b.externalUpvotes ?? 0) - (a.externalUpvotes ?? 0))[0];
+        if (topArg) {
+          debateMap.set(spec.canonicalNodeId, {
+            topHandle: topArg.authorHandle,
+            topUpvotes: topArg.externalUpvotes ?? 0,
+          });
+        }
+      }
+
+      const inputs = tree.specs.map((spec) => ({
+        id: spec.id,
+        canonicalNodeId: spec.canonicalNodeId,
+        parentId: spec.parentId,
+        shortName: spec.shortName,
+        dateTag: spec.dateTag,
+        track: spec.track,
+        x: spec.x,
+        y: spec.y,
+        overallProb: overallMap.get(spec.id) ?? spec.defaultConditionalProb,
+        conditionalProb: spec.defaultConditionalProb,
+        isTerminalOutcome: !parentSet.has(spec.id),
+        labelPosition: spec.labelPosition,
+      }));
+
+      const resolvedMap = resolveRiverLabelPlacements(inputs, debateMap);
+      const list = Array.from(resolvedMap.values());
+      expect(list).toHaveLength(tree.specs.length);
+
+      // Verify zero pairwise label bounding-box overlaps and zero label-to-circle overlaps
+      for (let i = 0; i < list.length; i++) {
+        const a = list[i];
+        if (a.bbox.top < 60 || a.bbox.bottom > 685) {
+          throw new Error(
+            `[${tree.name}] Node "${a.nodeId}" (${a.placement}) violated header/footer safe zone: top=${a.bbox.top}, bottom=${a.bbox.bottom}`
+          );
+        }
+        for (const spec of tree.specs) {
+          const r = resolvedMap.get(spec.id)?.radius ?? 10;
+          const circleBox = {
+            left: spec.x - r,
+            right: spec.x + r,
+            top: spec.y - r,
+            bottom: spec.y + r,
+          };
+          const circleOverlap = boxIntersectionArea(a.bbox, circleBox, 0);
+          expect(circleOverlap).toBe(0);
+        }
+        for (let j = i + 1; j < list.length; j++) {
+          const b = list[j];
+          const overlapArea = boxIntersectionArea(a.bbox, b.bbox, 0);
+          if (overlapArea > 0) {
+            throw new Error(
+              `[${tree.name}] Label overlap detected between "${a.nodeId}" (${a.placement}, x=${Math.round(a.bbox.left)}..${Math.round(a.bbox.right)}, y=${Math.round(a.bbox.top)}..${Math.round(a.bbox.bottom)}) and "${b.nodeId}" (${b.placement}, x=${Math.round(b.bbox.left)}..${Math.round(b.bbox.right)}, y=${Math.round(b.bbox.top)}..${Math.round(b.bbox.bottom)}): area=${overlapArea}`
+            );
+          }
+          expect(overlapArea).toBe(0);
+        }
+      }
+    }
+
+    // Verify no arguments or comments are attributed to synthetic mock handles elena_vance or marcus_chen
+    const allArgs = [...SEED_ARGUMENTS, ...AI_2040_ARGUMENTS, ...AI_2050_ARGUMENTS];
+    const allComments = [...SEED_COMMENTS, ...AI_2040_COMMENTS, ...AI_2050_COMMENTS];
+    for (const arg of allArgs) {
+      expect(arg.authorHandle).not.toBe("elena_vance");
+      expect(arg.authorHandle).not.toBe("marcus_chen");
+    }
+    for (const cmt of allComments) {
+      expect(cmt.authorHandle).not.toBe("elena_vance");
+      expect(cmt.authorHandle).not.toBe("marcus_chen");
+    }
+  });
 });
+
 

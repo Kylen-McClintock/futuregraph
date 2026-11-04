@@ -267,12 +267,13 @@ export function Navbar() {
         <div className="flex items-center gap-2">
           <Link
             href="/u/elena_vance"
+            title="Default interactive guest sandbox profile"
             className="hidden md:flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-1 text-xs text-slate-300 hover:border-slate-700"
           >
             <BookOpen className="h-3.5 w-3.5 text-sky-400" />
-            <span>@elena_vance</span>
+            <span>Guest Sandbox</span>
             <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono text-emerald-300 tabular-nums">
-              0.014
+              Demo
             </span>
           </Link>
           <button

@@ -157,7 +157,7 @@ export const AI_2040_RIVER_SPECS: RiverBranchNodeSpec[] = [
     track: "race",
     defaultConditionalProb: 0.84,
     x: 1240,
-    y: 110,
+    y: 122,
     labelPosition: "top",
   },
   {
@@ -169,7 +169,7 @@ export const AI_2040_RIVER_SPECS: RiverBranchNodeSpec[] = [
     track: "offramp",
     defaultConditionalProb: 0.16,
     x: 1240,
-    y: 195,
+    y: 205,
     labelPosition: "bottom",
   },
   {
@@ -180,8 +180,8 @@ export const AI_2040_RIVER_SPECS: RiverBranchNodeSpec[] = [
     dateTag: "2035–40",
     track: "race",
     defaultConditionalProb: 1.0,
-    x: 1755,
-    y: 110,
+    x: 1735,
+    y: 125,
     labelPosition: "top",
   },
 
@@ -221,8 +221,8 @@ export const AI_2040_RIVER_SPECS: RiverBranchNodeSpec[] = [
     track: "offramp",
     defaultConditionalProb: 0.22,
     x: 1240,
-    y: 335,
-    labelPosition: "bottom",
+    y: 330,
+    labelPosition: "right",
   },
 
   // ============================================================================
@@ -1352,9 +1352,9 @@ export const AI_2040_ARGUMENTS: ArgumentItem[] = [
   {
     id: "arg-2040-2029-crossroads-2",
     nodeId: "node-2040-2029-crossroads",
-    authorId: "prof-elena-vance",
-    authorHandle: "elena_vance",
-    authorName: "Dr. Elena Vance",
+    authorId: "prof-sella-nevo",
+    authorHandle: "sella_nevo_rand",
+    authorName: "Sella Nevo et al. (RAND Corporation)",
     authorType: "human",
     stance: "for",
     thesis:
@@ -1363,7 +1363,7 @@ export const AI_2040_ARGUMENTS: ArgumentItem[] = [
       "When both Washington and Beijing can see via intelligence and benchmark telemetry that 2030 brings full recursive self-improvement without provable alignment, neither side gains from an unverified sprint that disempowers both leaderships.",
     targetAssumption: "P(Plan A | 2029 Crossroads) = 38%",
     sourceIds: ["src-2040-6"],
-    externalPlatform: "AI 2040 Governance Analysis",
+    externalPlatform: "RAND / AI 2040 Governance",
     externalSourceUrl: "https://ai-2040.com/",
     externalUpvotes: 134,
     reactions: {
@@ -1857,9 +1857,9 @@ export const AI_2040_FORECAST_EVENTS: ForecastEvent[] = [
     nodeId: "node-2040-2030-plan-a",
     questionId: "q-node-2040-2030-plan-a",
     scenarioVersion: 1,
-    forecasterId: "prof-elena_vance",
-    forecasterHandle: "elena_vance",
-    forecasterName: "Dr. Elena Vance",
+    forecasterId: "prof-eli-lifland",
+    forecasterHandle: "eli_lifland",
+    forecasterName: "Eli Lifland (AI Futures Project / Samotsvety)",
     forecasterType: "human",
     lensCategory: "human_forecaster",
     probability: 0.34,
