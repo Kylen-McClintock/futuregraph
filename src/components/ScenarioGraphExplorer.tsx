@@ -1340,10 +1340,10 @@ export function ScenarioGraphExplorer({
               barClass: "bg-sky-500",
             },
             offramp: {
-              stroke: "#64748b",
-              nodeFill: "#64748b",
-              text: "#475569",
-              barClass: "bg-slate-500",
+              stroke: "#007d8e",
+              nodeFill: "#00a6c2",
+              text: "#0f766e",
+              barClass: "bg-teal-600",
             },
           }
         : {
@@ -1372,13 +1372,153 @@ export function ScenarioGraphExplorer({
               barClass: "bg-sky-400",
             },
             offramp: {
-              stroke: "#64748b",
-              nodeFill: "#94a3b8",
+              stroke: "#29dae4",
+              nodeFill: "#38bdf8",
               text: "#94a3b8",
               barClass: "bg-slate-400",
             },
           },
     [isLightMode]
+  );
+
+  /**
+   * Flourish-inspired semantic node palette that gives each branch a rich gradient endpoint
+   * and clearly differentiates worse / dystopian / existential-catastrophe branches in crimson/red.
+   */
+  const getNodeSemanticPalette = useCallback(
+    (node: ComputedRiverNode) => {
+      const key = `${node.id} ${node.shortName}`.toLowerCase();
+
+      // 1. Severe Existential Catastrophe / Extinction / Paperclipalypse (Deep Scarlet-Crimson Red)
+      if (
+        key.includes("paperclip") ||
+        key.includes("extinction") ||
+        key.includes("takeover") ||
+        key.includes("schemer") ||
+        key.includes("disempowerment") ||
+        key.includes("bioweapon") ||
+        key.includes("loss of control") ||
+        key.includes("conquer")
+      ) {
+        return isLightMode
+          ? {
+              stroke: "#dc2626",
+              nodeFill: "#ef4444",
+              text: "#991b1b",
+              barClass: "bg-red-600",
+              isWorseOutcome: true,
+            }
+          : {
+              stroke: "#ff1e42",
+              nodeFill: "#ff3355",
+              text: "#fda4af",
+              barClass: "bg-red-500",
+              isWorseOutcome: true,
+            };
+      }
+
+      // 2. Dystopian / Surveillance / Authoritarian / Unchecked Race (Vibrant Crimson-Rose Red)
+      if (
+        key.includes("dystopia") ||
+        key.includes("panopticon") ||
+        key.includes("feudal") ||
+        key.includes("oligarchy") ||
+        key.includes("adversarial") ||
+        key.includes("misaligned") ||
+        key.includes("theft") ||
+        node.track === "race"
+      ) {
+        return isLightMode
+          ? {
+              stroke: "#e11d48",
+              nodeFill: "#f43f5e",
+              text: "#be123c",
+              barClass: "bg-rose-600",
+              isWorseOutcome: true,
+            }
+          : {
+              stroke: "#f43f5e",
+              nodeFill: "#fb7185",
+              text: "#fecdd3",
+              barClass: "bg-rose-500",
+              isWorseOutcome: true,
+            };
+      }
+
+      // 3. Singularia / Benevolent ASI / Mind Uploading / Post-Singularity Good (Flourish Royal Violet-Indigo)
+      if (
+        key.includes("singularia") ||
+        key.includes("asi gods") ||
+        key.includes("em upload") ||
+        key.includes("q3b-good")
+      ) {
+        return isLightMode
+          ? {
+              stroke: "#4328e7",
+              nodeFill: "#6366f1",
+              text: "#3730a3",
+              barClass: "bg-indigo-600",
+              isWorseOutcome: false,
+            }
+          : {
+              stroke: "#847efa",
+              nodeFill: "#a78bfa",
+              text: "#ddd6fe",
+              barClass: "bg-violet-400",
+              isWorseOutcome: false,
+            };
+      }
+
+      // 4. Futurama / Aligned Civilization / Slowdown & Verify / Plan A (Vibrant Emerald-Teal)
+      if (
+        key.includes("futurama") ||
+        key.includes("citizen dividend") ||
+        key.includes("tool ai") ||
+        key.includes("q3a-good") ||
+        node.track === "slowdown"
+      ) {
+        return isLightMode
+          ? {
+              stroke: "#059669",
+              nodeFill: "#10b981",
+              text: "#047857",
+              barClass: "bg-emerald-600",
+              isWorseOutcome: false,
+            }
+          : {
+              stroke: "#00a670",
+              nodeFill: "#34d399",
+              text: "#a7f3d0",
+              barClass: "bg-emerald-400",
+              isWorseOutcome: false,
+            };
+      }
+
+      // 5. Root Origin Node (Flourish Electric Indigo)
+      if (!node.parentId) {
+        return isLightMode
+          ? {
+              stroke: "#4328e7",
+              nodeFill: "#4f46e5",
+              text: "#3730a3",
+              barClass: "bg-indigo-600",
+              isWorseOutcome: false,
+            }
+          : {
+              stroke: "#6366f1",
+              nodeFill: "#818cf8",
+              text: "#c7d2fe",
+              barClass: "bg-indigo-400",
+              isWorseOutcome: false,
+            };
+      }
+
+      return {
+        ...trackColors[node.track],
+        isWorseOutcome: false,
+      };
+    },
+    [isLightMode, trackColors]
   );
 
   const zoomPercentage = Math.round((FULL_VIEWBOX.w / camera.w) * 100);
@@ -1990,7 +2130,7 @@ export function ScenarioGraphExplorer({
                   </div>
                   {rankedTerminalOutcomes.map((outNode, rankIdx) => {
                     const pct = (outNode.overallProb * 100).toFixed(1);
-                    const palette = trackColors[outNode.track];
+                    const palette = getNodeSemanticPalette(outNode);
                     const isSelected =
                       selectedNodeId === outNode.canonicalNodeId;
                     const isHovered = hoveredRiverId === outNode.id;
@@ -2021,6 +2161,14 @@ export function ScenarioGraphExplorer({
                             <span className="font-mono text-slate-400 mr-1">
                               {rankIdx + 1}.
                             </span>
+                            {palette.isWorseOutcome && (
+                              <span
+                                className="mr-1 text-rose-400"
+                                aria-hidden="true"
+                              >
+                                ⚠
+                              </span>
+                            )}
                             {outNode.shortName}
                           </span>
                           <span
@@ -2059,65 +2207,37 @@ export function ScenarioGraphExplorer({
                   <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.48" />
                   <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
                 </radialGradient>
-                <linearGradient
-                  id="grad-spine"
-                  gradientUnits="userSpaceOnUse"
-                  x1="80"
-                  y1="0"
-                  x2="1150"
-                  y2="0"
-                >
-                  <stop
-                    offset="0%"
-                    stopColor={isLightMode ? "#d97706" : "#f59e0b"}
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor={isLightMode ? "#ea580c" : "#fbbf24"}
-                  />
-                </linearGradient>
-                <linearGradient
-                  id="grad-race"
-                  gradientUnits="userSpaceOnUse"
-                  x1="700"
-                  y1="0"
-                  x2="1780"
-                  y2="0"
-                >
-                  <stop
-                    offset="0%"
-                    stopColor={isLightMode ? "#d97706" : "#f59e0b"}
-                  />
-                  <stop
-                    offset="45%"
-                    stopColor={isLightMode ? "#e11d48" : "#f43f5e"}
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor={isLightMode ? "#be123c" : "#fb7185"}
-                  />
-                </linearGradient>
-                <linearGradient
-                  id="grad-slowdown"
-                  gradientUnits="userSpaceOnUse"
-                  x1="700"
-                  y1="0"
-                  x2="1780"
-                  y2="0"
-                >
-                  <stop
-                    offset="0%"
-                    stopColor={isLightMode ? "#d97706" : "#f59e0b"}
-                  />
-                  <stop
-                    offset="45%"
-                    stopColor={isLightMode ? "#059669" : "#10b981"}
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor={isLightMode ? "#047857" : "#34d399"}
-                  />
-                </linearGradient>
+                {/* Dynamic Per-Branch Flourish-Style Gradients (Parent Color -> Child Semantic Color) */}
+                {computedRiverNodes.map((node) => {
+                  if (!node.parentId) return null;
+                  const parent = riverNodeMap.get(node.parentId);
+                  if (!parent) return null;
+                  const startY = sankeyStartYByNodeId.get(node.id) ?? parent.y;
+                  const parentPalette = getNodeSemanticPalette(parent);
+                  const childPalette = getNodeSemanticPalette(node);
+                  return (
+                    <linearGradient
+                      key={`river-edge-grad-${node.id}`}
+                      id={`river-edge-grad-${node.id}`}
+                      gradientUnits="userSpaceOnUse"
+                      x1={parent.x}
+                      y1={startY}
+                      x2={node.x}
+                      y2={node.y}
+                    >
+                      <stop
+                        offset="10%"
+                        stopColor={parentPalette.stroke}
+                        stopOpacity="0.88"
+                      />
+                      <stop
+                        offset="90%"
+                        stopColor={childPalette.stroke}
+                        stopOpacity="0.94"
+                      />
+                    </linearGradient>
+                  );
+                })}
               </defs>
 
               <g>
@@ -2247,17 +2367,9 @@ export function ScenarioGraphExplorer({
                   const c2x = parent.x + dx * 0.54;
                   const pathD = `M ${parent.x} ${startY} C ${c1x} ${startY}, ${c2x} ${node.y}, ${node.x} ${node.y}`;
 
-                  const color = trackColors[node.track].stroke;
-                  const strokePaint =
-                    node.id === "river-race-1-continue" ||
-                    node.id === "r2040-plancd-race"
-                      ? "url(#grad-race)"
-                      : node.id === "river-slow-1-freeze" ||
-                        node.id === "r2040-plana-2030-deal"
-                      ? "url(#grad-slowdown)"
-                      : node.track === "spine"
-                      ? "url(#grad-spine)"
-                      : color;
+                  const nodePalette = getNodeSemanticPalette(node);
+                  const color = nodePalette.stroke;
+                  const strokePaint = `url(#river-edge-grad-${node.id})`;
 
                   const condPct = Math.round(node.conditionalProb * 100);
 
@@ -2383,7 +2495,7 @@ export function ScenarioGraphExplorer({
 
                   const overallPct = Math.round(node.overallProb * 100);
                   const condPct = Math.round(node.conditionalProb * 100);
-                  const palette = trackColors[node.track];
+                  const palette = getNodeSemanticPalette(node);
 
                   const roleTag = isSelected
                     ? "● SELECTED"
@@ -2453,15 +2565,29 @@ export function ScenarioGraphExplorer({
                         <circle cx={0} cy={0} r={34} fill="url(#hubGlow)" />
                       )}
 
-                      {/* Terminal Major Outcome halo */}
+                      {/* Terminal Major Outcome halo & Worse-Outcome Warning Ring */}
                       {node.isTerminalOutcome && !isSideBranch && (
-                        <circle
-                          cx={0}
-                          cy={0}
-                          r={radius + 8}
-                          fill={palette.nodeFill}
-                          opacity={0.18}
-                        />
+                        <>
+                          <circle
+                            cx={0}
+                            cy={0}
+                            r={radius + 8}
+                            fill={palette.nodeFill}
+                            opacity={palette.isWorseOutcome ? 0.24 : 0.18}
+                          />
+                          {palette.isWorseOutcome && (
+                            <circle
+                              cx={0}
+                              cy={0}
+                              r={radius + 4.5}
+                              fill="none"
+                              stroke={palette.stroke}
+                              strokeWidth={1.5}
+                              strokeDasharray="3 2.5"
+                              opacity={0.85}
+                            />
+                          )}
+                        </>
                       )}
 
                       {/* Selection or Prev/Next ring */}

@@ -324,10 +324,10 @@ export function NatureOfRealitySankey() {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredLinkId, setHoveredLinkId] = useState<string | null>(null);
 
-  // Studio Mode: "split" (Sankey + Right Deep-Dive Inspector), "canvas" (Full-screen Sankey), "matrix" (Full 43-Node & 98-Link Deep-Dive Probability Matrix)
-  const [studioMode, setStudioMode] = useState<"split" | "canvas" | "matrix">(
-    "split"
-  );
+  // Studio Mode: "split" (Gradient Sankey + Right Deep-Dive Inspector), "spine" (Recommended 7-Epoch Conditional Spine + Inspector), "canvas" (Full-screen Sankey), "matrix" (Full 43-Node & 119-Link Deep-Dive Probability Matrix)
+  const [studioMode, setStudioMode] = useState<
+    "split" | "spine" | "canvas" | "matrix"
+  >("split");
   const [matrixEpochFilter, setMatrixEpochFilter] = useState<number | "all">(
     "all"
   );
@@ -812,9 +812,9 @@ export function NatureOfRealitySankey() {
 
           {/* Right: Studio Mode Switcher, Guided Tour, & Community Submit */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* View Mode Toggle: Split Studio vs Full Sankey vs Deep-Dive Matrix */}
+            {/* View Mode Toggle: Gradient Sankey vs Recommended 7-Epoch Conditional Spine vs Deep-Dive Matrix vs Full Canvas */}
             <div
-              className="inline-flex items-center rounded-lg border border-slate-800 bg-slate-950 p-0.5 text-xs"
+              className="inline-flex flex-wrap items-center rounded-lg border border-slate-800 bg-slate-950 p-0.5 text-xs"
               role="group"
               aria-label="Probability Studio View Mode"
             >
@@ -828,7 +828,20 @@ export function NatureOfRealitySankey() {
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                Sankey + Deep-Dive Inspector
+                Gradient Sankey
+              </button>
+              <button
+                type="button"
+                aria-pressed={studioMode === "spine"}
+                onClick={() => setStudioMode("spine")}
+                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                  studioMode === "spine"
+                    ? "bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white shadow-sm"
+                    : "text-fuchsia-300 hover:text-white"
+                }`}
+              >
+                <Sparkles className="h-3 w-3" />
+                <span>7-Epoch Spine (Cards)</span>
               </button>
               <button
                 type="button"
@@ -841,7 +854,7 @@ export function NatureOfRealitySankey() {
                 }`}
               >
                 <TableIcon className="h-3 w-3" />
-                <span>All 43 Nodes & 119 Splits Matrix</span>
+                <span>All 43 Nodes & 119 Splits</span>
               </button>
               <button
                 type="button"
@@ -854,7 +867,7 @@ export function NatureOfRealitySankey() {
                 }`}
               >
                 <Maximize2 className="h-3 w-3" />
-                <span>Full Canvas</span>
+                <span>Full Sankey</span>
               </button>
             </div>
 
@@ -1392,11 +1405,311 @@ export function NatureOfRealitySankey() {
           </div>
         </div>
       ) : (
-        /* Split Studio or Full Canvas Mode: Interactive Flourish-Style Gradient Sankey + Right Deep-Dive Inspector */
+        /* Split Studio, 7-Epoch Conditional Spine, or Full Canvas Mode */
         <div className="flex flex-1 flex-col lg:flex-row min-h-0 overflow-hidden">
-          {/* Left / Main: Flourish-Grade Multi-Epoch Gradient Sankey Canvas */}
-          <div
-            ref={svgContainerRef}
+          {studioMode === "spine" ? (
+            /* Recommended 7-Epoch Conditional Spine & Interactive Stage Cards View */
+            <div className="flex-1 overflow-y-auto p-4 lg:p-5 bg-slate-950 select-text space-y-4">
+              {/* Dominant Worldview Trajectory Summary Ribbon */}
+              <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/60 via-slate-900 to-fuchsia-950/50 p-4 shadow-lg">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-400" />
+                    <h2 className="text-sm font-extrabold text-white">
+                      Your Dominant 7-Epoch Worldview Spine ({customWorldviewTitle})
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-slate-400">
+                      Click any stage card below to adjust probabilities, condition on{" "}
+                      <code className="text-amber-300">Given X = 100%</code>, or inspect citations
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStudioMode("split")}
+                      className="rounded-lg border border-indigo-400/40 bg-indigo-500/20 px-2.5 py-1 text-[11px] font-bold text-indigo-200 hover:bg-indigo-500/30"
+                    >
+                      Switch to Gradient Sankey
+                    </button>
+                  </div>
+                </div>
+
+                {/* 7-Stage Dominant Path Pills */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-2">
+                  {NATURE_OF_REALITY_EPOCHS.map((ep) => {
+                    const topNode = [...graph.nodes]
+                      .filter((n) => n.columnIndex === ep.columnIndex)
+                      .sort((a, b) => b.probability - a.probability)[0];
+                    if (!topNode) return null;
+                    return (
+                      <button
+                        key={`dom-${ep.id}`}
+                        type="button"
+                        onClick={() => setSelectedNodeId(topNode.id)}
+                        className={`flex flex-col justify-between rounded-xl border p-2.5 text-left transition-all ${
+                          selectedNodeId === topNode.id
+                            ? "border-white bg-slate-800/90 shadow-md"
+                            : "border-slate-800 bg-slate-900/80 hover:border-slate-700"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span
+                            className="rounded px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-white"
+                            style={{ backgroundColor: ep.badgeColor }}
+                          >
+                            {ep.shortTitle.split(".")[0]}
+                          </span>
+                          <span
+                            className="font-mono text-xs font-extrabold tabular-nums"
+                            style={{ color: topNode.color }}
+                          >
+                            {formatPct(topNode.probability, 1)}
+                          </span>
+                        </div>
+                        <div className="mt-1.5 text-xs font-bold text-white line-clamp-2 leading-snug">
+                          {topNode.shortLabel || topNode.name}
+                        </div>
+                        <div className="mt-1 text-[10px] text-slate-400 truncate">
+                          {ep.questionTitle}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 7 Distinct Epoch Sections with Stacked Gradient Bars & Interactive Hypothesis Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-4">
+                {NATURE_OF_REALITY_EPOCHS.map((ep) => {
+                  const colNodes = [...graph.nodes]
+                    .filter((n) => n.columnIndex === ep.columnIndex)
+                    .sort((a, b) => b.probability - a.probability);
+                  const colTotal = colNodes.reduce(
+                    (acc, n) => acc + n.probability,
+                    0
+                  );
+
+                  return (
+                    <section
+                      key={ep.id}
+                      aria-label={ep.questionTitle}
+                      className="flex flex-col rounded-2xl border border-slate-800/90 bg-slate-900/60 overflow-hidden shadow-md"
+                    >
+                      {/* Section Header */}
+                      <div
+                        className="border-b border-slate-800 p-3.5"
+                        style={{
+                          background: `linear-gradient(135deg, ${ep.badgeColor}28 0%, rgba(15,23,42,0.92) 100%)`,
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className="rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white"
+                            style={{ backgroundColor: ep.badgeColor }}
+                          >
+                            {ep.shortTitle}
+                          </span>
+                          <span className="font-mono text-[11px] font-bold text-slate-300 tabular-nums">
+                            Stage Mass: {formatPct(colTotal, 1)}
+                          </span>
+                        </div>
+                        <h3 className="mt-1.5 text-sm font-extrabold text-white">
+                          {ep.questionTitle}
+                        </h3>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {ep.subtitle}
+                        </p>
+
+                        {/* Stacked Gradient Proportion Bar for the Section */}
+                        <div className="mt-2.5 flex h-2.5 w-full overflow-hidden rounded-full bg-slate-950 p-0.5 gap-0.5">
+                          {colNodes.map((n) => {
+                            const share =
+                              colTotal > 0
+                                ? (n.probability / colTotal) * 100
+                                : 0;
+                            if (share < 0.4) return null;
+                            return (
+                              <div
+                                key={`bar-${n.id}`}
+                                title={`${n.name}: ${formatPct(n.probability, 1)}`}
+                                style={{
+                                  width: `${share}%`,
+                                  backgroundColor: n.color,
+                                }}
+                                className="h-full first:rounded-l-full last:rounded-r-full transition-all duration-300"
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Hypothesis Cards inside this Section */}
+                      <div className="p-3 space-y-2.5 flex-1">
+                        {colNodes.map((node) => {
+                          const isSelected = selectedNodeId === node.id;
+                          const isConditioned = conditionedNodeId === node.id;
+                          const isLineageActive =
+                            highlightedLineage?.nodeIds.has(node.id) ?? false;
+
+                          // Find top outgoing child for gradient pairing
+                          const topOutLink = [...graph.links]
+                            .filter((l) => l.sourceId === node.id)
+                            .sort((a, b) => b.flow - a.flow)[0];
+                          const topChildColor =
+                            topOutLink?.targetColor ?? node.color;
+                          const topChildNode = topOutLink
+                            ? graph.nodeMap.get(topOutLink.targetId)
+                            : null;
+
+                          const cardSliderId = `${uniqueIdPrefix}-spine-slider-${node.id}`;
+                          const deltaCrowd =
+                            (node.probability - node.communityProbability) *
+                            100;
+
+                          return (
+                            <div
+                              key={node.id}
+                              onMouseEnter={() => setHoveredNodeId(node.id)}
+                              onMouseLeave={() => setHoveredNodeId(null)}
+                              onClick={() => setSelectedNodeId(node.id)}
+                              className={`cursor-pointer rounded-xl border p-3 transition-all ${
+                                isSelected
+                                  ? "border-sky-400 bg-slate-900 shadow-lg ring-1 ring-sky-400/50"
+                                  : isConditioned
+                                  ? "border-amber-400 bg-amber-950/25"
+                                  : isLineageActive
+                                  ? "border-indigo-400/70 bg-slate-900/90"
+                                  : "border-slate-800/90 bg-slate-950/75 hover:border-slate-700"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span
+                                    className="h-3.5 w-3.5 rounded-sm shrink-0 shadow-sm"
+                                    style={{ backgroundColor: node.color }}
+                                  />
+                                  <span className="text-xs font-bold text-white leading-snug">
+                                    {node.shortLabel || node.name}
+                                  </span>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <span
+                                    className="font-mono text-sm font-extrabold tabular-nums"
+                                    style={{ color: node.color }}
+                                  >
+                                    {formatPct(node.probability, 1)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Gradient Probability Fill Bar */}
+                              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-900">
+                                <div
+                                  className="h-full rounded-full transition-all duration-300"
+                                  style={{
+                                    width: `${Math.max(
+                                      2,
+                                      Math.min(100, node.probability * 100)
+                                    )}%`,
+                                    background: `linear-gradient(90deg, ${node.color} 0%, ${topChildColor} 100%)`,
+                                  }}
+                                />
+                              </div>
+
+                              {/* Inline Quick Probability Slider */}
+                              <div
+                                className="mt-2 flex items-center gap-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <label
+                                  htmlFor={cardSliderId}
+                                  className="text-[10px] font-mono text-slate-400 shrink-0"
+                                >
+                                  Adjust:
+                                </label>
+                                <input
+                                  id={cardSliderId}
+                                  type="range"
+                                  min={0.2}
+                                  max={98}
+                                  step={0.5}
+                                  value={Number(
+                                    (node.probability * 100).toFixed(1)
+                                  )}
+                                  onChange={(e) =>
+                                    handleSetDirectNodeProbability(
+                                      node.id,
+                                      Number(e.target.value) / 100
+                                    )
+                                  }
+                                  className="flex-1 h-1.5 accent-indigo-400"
+                                />
+                                <button
+                                  type="button"
+                                  aria-pressed={isConditioned}
+                                  onClick={() =>
+                                    setConditionedNodeId(
+                                      isConditioned ? null : node.id
+                                    )
+                                  }
+                                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition-colors ${
+                                    isConditioned
+                                      ? "bg-amber-400 text-slate-950"
+                                      : "border border-slate-700 bg-slate-900 text-slate-300 hover:border-amber-400/50 hover:text-amber-300"
+                                  }`}
+                                >
+                                  {isConditioned ? "100% Fixed" : "Assume 100%"}
+                                </button>
+                              </div>
+
+                              {/* Downstream Primary Flow + Crowd Delta */}
+                              <div className="mt-2 flex flex-wrap items-center justify-between gap-1 pt-1.5 border-t border-slate-800/60 text-[10px]">
+                                {topChildNode && topOutLink ? (
+                                  <span className="text-slate-400 truncate max-w-[200px]">
+                                    Top flow:{" "}
+                                    <strong className="text-slate-200">
+                                      →{" "}
+                                      {topChildNode.shortLabel ||
+                                        topChildNode.name}
+                                    </strong>{" "}
+                                    ({Math.round(topOutLink.conditionalProb * 100)}
+                                    %)
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-500 font-mono">
+                                    Terminal Cosmic Endpoint
+                                  </span>
+                                )}
+
+                                <span className="font-mono text-slate-400 tabular-nums">
+                                  Crowd: {formatPct(node.communityProbability, 1)}
+                                  {Math.abs(deltaCrowd) >= 0.5 && (
+                                    <span
+                                      className={
+                                        deltaCrowd > 0
+                                          ? "text-emerald-400 ml-1"
+                                          : "text-rose-400 ml-1"
+                                      }
+                                    >
+                                      ({deltaCrowd > 0 ? "+" : ""}
+                                      {deltaCrowd.toFixed(0)}%)
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* Left / Main: Flourish-Grade Multi-Epoch Gradient Sankey Canvas */
+            <div
+              ref={svgContainerRef}
             onMouseDown={(e) => {
               if ((e.target as HTMLElement).closest("[data-floating-ui]")) {
                 return;
@@ -1444,26 +1757,27 @@ export function NatureOfRealitySankey() {
                 Consciousness Hypotheses
               </title>
 
-              {/* Dynamic Linear Gradients matching Flourish's exact 10% -> 90% stops at 0.8 stop-opacity */}
+              {/* Dynamic Linear Gradients in userSpaceOnUse so even flat horizontal ribbons (like Multiverse -> Eternal Inflation) always render */}
               <defs>
                 {ribbons.map((r) => (
                   <linearGradient
                     key={`grad-${r.id}`}
                     id={`${uniqueIdPrefix}-grad-${r.id}`}
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="0%"
+                    gradientUnits="userSpaceOnUse"
+                    x1={r.x0}
+                    y1={r.syCenter}
+                    x2={r.x1}
+                    y2={r.tyCenter}
                   >
                     <stop
                       offset="10%"
                       stopColor={r.link.sourceColor}
-                      stopOpacity={isLightCanvas ? 0.8 : 0.84}
+                      stopOpacity={isLightCanvas ? 0.82 : 0.86}
                     />
                     <stop
                       offset="90%"
                       stopColor={r.link.targetColor}
-                      stopOpacity={isLightCanvas ? 0.8 : 0.84}
+                      stopOpacity={isLightCanvas ? 0.82 : 0.86}
                     />
                   </linearGradient>
                 ))}
@@ -1818,9 +2132,10 @@ export function NatureOfRealitySankey() {
               </button>
             </div>
           </div>
+          )}
 
           {/* Right Panel: Deep-Dive Probability Studio & Philosophical/Physics Citations */}
-          {studioMode === "split" && selectedNode && (
+          {(studioMode === "split" || studioMode === "spine") && selectedNode && (
             <aside
               aria-label="Selected Hypothesis Deep-Dive Probability Studio"
               className="flex flex-col w-full lg:w-[470px] xl:w-[510px] lg:h-full shrink-0 border-t lg:border-t-0 lg:border-l border-slate-800 bg-slate-950 overflow-y-auto select-text"
