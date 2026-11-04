@@ -37,6 +37,7 @@ import {
   NATURE_OF_REALITY_NODES,
   NATURE_OF_REALITY_PRESETS,
 } from "@/data/nature-of-reality-seed";
+import { NatureOfRealityOverallFlow } from "@/components/NatureOfRealityOverallFlow";
 
 interface SankeyNodeBox {
   id: string;
@@ -337,6 +338,21 @@ export function NatureOfRealitySankey() {
   const [canvasBackdrop, setCanvasBackdrop] = useState<
     "flourish-light" | "cosmos-dark"
   >("flourish-light");
+
+  useEffect(() => {
+    const onThemeChange = (e: Event) => {
+      const custom = e as CustomEvent<{ theme?: string }>;
+      if (custom.detail?.theme === "light") {
+        setCanvasBackdrop("flourish-light");
+      } else if (custom.detail?.theme === "dark") {
+        setCanvasBackdrop("cosmos-dark");
+      } else if (document.documentElement.classList.contains("light")) {
+        setCanvasBackdrop("flourish-light");
+      }
+    };
+    window.addEventListener("fg-theme-change", onThemeChange);
+    return () => window.removeEventListener("fg-theme-change", onThemeChange);
+  }, []);
 
   // Guided Presentation Tour state
   const [tourEpochIndex, setTourEpochIndex] = useState<number | null>(null);
@@ -824,7 +840,7 @@ export function NatureOfRealitySankey() {
                 onClick={() => setStudioMode("split")}
                 className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
                   studioMode === "split"
-                    ? "bg-indigo-500 text-white"
+                    ? "bg-indigo-600 text-white keep-white"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -836,12 +852,12 @@ export function NatureOfRealitySankey() {
                 onClick={() => setStudioMode("spine")}
                 className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-semibold transition-colors ${
                   studioMode === "spine"
-                    ? "bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white shadow-sm"
+                    ? "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-sm keep-white"
                     : "text-fuchsia-300 hover:text-white"
                 }`}
               >
                 <Sparkles className="h-3 w-3" />
-                <span>7-Epoch Spine (Cards)</span>
+                <span>7-Epoch Flow &amp; Spine</span>
               </button>
               <button
                 type="button"
@@ -849,7 +865,7 @@ export function NatureOfRealitySankey() {
                 onClick={() => setStudioMode("matrix")}
                 className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-semibold transition-colors ${
                   studioMode === "matrix"
-                    ? "bg-indigo-500 text-white"
+                    ? "bg-indigo-600 text-white keep-white"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -862,7 +878,7 @@ export function NatureOfRealitySankey() {
                 onClick={() => setStudioMode("canvas")}
                 className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-semibold transition-colors ${
                   studioMode === "canvas"
-                    ? "bg-indigo-500 text-white"
+                    ? "bg-indigo-600 text-white keep-white"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -1408,29 +1424,62 @@ export function NatureOfRealitySankey() {
         /* Split Studio, 7-Epoch Conditional Spine, or Full Canvas Mode */
         <div className="flex flex-1 flex-col lg:flex-row min-h-0 overflow-hidden">
           {studioMode === "spine" ? (
-            /* Recommended 7-Epoch Conditional Spine & Interactive Stage Cards View */
-            <div className="flex-1 overflow-y-auto p-4 lg:p-5 bg-slate-950 select-text space-y-4">
+            /* Recommended 7-Epoch Overall Flow + Interactive Stage Cards View */
+            <div
+              className={`flex-1 overflow-y-auto p-4 lg:p-5 select-text space-y-4 transition-colors ${
+                isLightCanvas
+                  ? "bg-[#f8f6f0] text-slate-900"
+                  : "bg-slate-950 text-slate-100"
+              }`}
+            >
+              {/* Compelling Overall 7-Epoch Probability Flow Visual (Marimekko + 5-Worldview Macro River + Storyline Funnel) */}
+              <NatureOfRealityOverallFlow
+                graph={graph}
+                isLightCanvas={isLightCanvas}
+                selectedNodeId={selectedNodeId}
+                conditionedNodeId={conditionedNodeId}
+                hoveredNodeId={hoveredNodeId}
+                onSelectNode={(id) => setSelectedNodeId(id)}
+                onHoverNode={(id) => setHoveredNodeId(id)}
+                onSwitchToSankey={() => setStudioMode("split")}
+                customWorldviewTitle={customWorldviewTitle}
+              />
+
               {/* Dominant Worldview Trajectory Summary Ribbon */}
-              <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/60 via-slate-900 to-fuchsia-950/50 p-4 shadow-lg">
+              <div
+                className={`rounded-2xl border p-4 shadow-md transition-colors ${
+                  isLightCanvas
+                    ? "border-indigo-200 bg-gradient-to-r from-indigo-50/90 via-white to-fuchsia-50/90 text-slate-900"
+                    : "border-indigo-500/30 bg-gradient-to-r from-indigo-950/60 via-slate-900 to-fuchsia-950/50 text-white"
+                }`}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-amber-400" />
-                    <h2 className="text-sm font-extrabold text-white">
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    <h2
+                      className={`text-sm font-extrabold ${
+                        isLightCanvas ? "text-slate-900" : "text-white"
+                      }`}
+                    >
                       Your Dominant 7-Epoch Worldview Spine ({customWorldviewTitle})
                     </h2>
                   </div>
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="text-slate-400">
-                      Click any stage card below to adjust probabilities, condition on{" "}
-                      <code className="text-amber-300">Given X = 100%</code>, or inspect citations
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setStudioMode("split")}
-                      className="rounded-lg border border-indigo-400/40 bg-indigo-500/20 px-2.5 py-1 text-[11px] font-bold text-indigo-200 hover:bg-indigo-500/30"
+                    <span
+                      className={
+                        isLightCanvas ? "text-slate-600" : "text-slate-400"
+                      }
                     >
-                      Switch to Gradient Sankey
-                    </button>
+                      Click any stage card below to adjust probabilities, condition on{" "}
+                      <code
+                        className={`font-bold ${
+                          isLightCanvas ? "text-amber-700" : "text-amber-300"
+                        }`}
+                      >
+                        Given X = 100%
+                      </code>
+                      , or inspect citations
+                    </span>
                   </div>
                 </div>
 
@@ -1448,28 +1497,45 @@ export function NatureOfRealitySankey() {
                         onClick={() => setSelectedNodeId(topNode.id)}
                         className={`flex flex-col justify-between rounded-xl border p-2.5 text-left transition-all ${
                           selectedNodeId === topNode.id
-                            ? "border-white bg-slate-800/90 shadow-md"
+                            ? isLightCanvas
+                              ? "border-indigo-600 bg-white shadow-md ring-1 ring-indigo-500/40"
+                              : "border-white bg-slate-800/90 shadow-md"
+                            : isLightCanvas
+                            ? "border-slate-200/90 bg-white/95 hover:border-slate-300 shadow-sm"
                             : "border-slate-800 bg-slate-900/80 hover:border-slate-700"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1">
                           <span
-                            className="rounded px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-white"
+                            className="rounded px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-white keep-white"
                             style={{ backgroundColor: ep.badgeColor }}
                           >
                             {ep.shortTitle.split(".")[0]}
                           </span>
                           <span
                             className="font-mono text-xs font-extrabold tabular-nums"
-                            style={{ color: topNode.color }}
+                            style={{
+                              color:
+                                isLightCanvas && topNode.color === "#FFC502"
+                                  ? "#b45309"
+                                  : topNode.color,
+                            }}
                           >
                             {formatPct(topNode.probability, 1)}
                           </span>
                         </div>
-                        <div className="mt-1.5 text-xs font-bold text-white line-clamp-2 leading-snug">
+                        <div
+                          className={`mt-1.5 text-xs font-bold line-clamp-2 leading-snug ${
+                            isLightCanvas ? "text-slate-900" : "text-white"
+                          }`}
+                        >
                           {topNode.shortLabel || topNode.name}
                         </div>
-                        <div className="mt-1 text-[10px] text-slate-400 truncate">
+                        <div
+                          className={`mt-1 text-[10px] truncate ${
+                            isLightCanvas ? "text-slate-500" : "text-slate-400"
+                          }`}
+                        >
                           {ep.questionTitle}
                         </div>
                       </button>
@@ -1493,35 +1559,65 @@ export function NatureOfRealitySankey() {
                     <section
                       key={ep.id}
                       aria-label={ep.questionTitle}
-                      className="flex flex-col rounded-2xl border border-slate-800/90 bg-slate-900/60 overflow-hidden shadow-md"
+                      className={`flex flex-col rounded-2xl border overflow-hidden shadow-md transition-colors ${
+                        isLightCanvas
+                          ? "border-slate-200/90 bg-[#fcfbf9]"
+                          : "border-slate-800/90 bg-slate-900/60"
+                      }`}
                     >
                       {/* Section Header */}
                       <div
-                        className="border-b border-slate-800 p-3.5"
+                        className={`border-b p-3.5 ${
+                          isLightCanvas
+                            ? "border-slate-200"
+                            : "border-slate-800"
+                        }`}
                         style={{
-                          background: `linear-gradient(135deg, ${ep.badgeColor}28 0%, rgba(15,23,42,0.92) 100%)`,
+                          background: isLightCanvas
+                            ? `linear-gradient(135deg, ${ep.badgeColor}18 0%, #ffffff 100%)`
+                            : `linear-gradient(135deg, ${ep.badgeColor}28 0%, rgba(15,23,42,0.92) 100%)`,
                         }}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span
-                            className="rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white"
+                            className="rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white keep-white"
                             style={{ backgroundColor: ep.badgeColor }}
                           >
                             {ep.shortTitle}
                           </span>
-                          <span className="font-mono text-[11px] font-bold text-slate-300 tabular-nums">
+                          <span
+                            className={`font-mono text-[11px] font-bold tabular-nums ${
+                              isLightCanvas
+                                ? "text-slate-600"
+                                : "text-slate-300"
+                            }`}
+                          >
                             Stage Mass: {formatPct(colTotal, 1)}
                           </span>
                         </div>
-                        <h3 className="mt-1.5 text-sm font-extrabold text-white">
+                        <h3
+                          className={`mt-1.5 text-sm font-extrabold ${
+                            isLightCanvas ? "text-slate-900" : "text-white"
+                          }`}
+                        >
                           {ep.questionTitle}
                         </h3>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
+                        <p
+                          className={`text-[11px] mt-0.5 ${
+                            isLightCanvas ? "text-slate-600" : "text-slate-400"
+                          }`}
+                        >
                           {ep.subtitle}
                         </p>
 
                         {/* Stacked Gradient Proportion Bar for the Section */}
-                        <div className="mt-2.5 flex h-2.5 w-full overflow-hidden rounded-full bg-slate-950 p-0.5 gap-0.5">
+                        <div
+                          className={`mt-2.5 flex h-2.5 w-full overflow-hidden rounded-full p-0.5 gap-0.5 ${
+                            isLightCanvas
+                              ? "bg-slate-200/90"
+                              : "bg-slate-950"
+                          }`}
+                        >
                           {colNodes.map((n) => {
                             const share =
                               colTotal > 0
@@ -1574,11 +1670,19 @@ export function NatureOfRealitySankey() {
                               onClick={() => setSelectedNodeId(node.id)}
                               className={`cursor-pointer rounded-xl border p-3 transition-all ${
                                 isSelected
-                                  ? "border-sky-400 bg-slate-900 shadow-lg ring-1 ring-sky-400/50"
+                                  ? isLightCanvas
+                                    ? "border-sky-500 bg-white shadow-md ring-2 ring-sky-500/30"
+                                    : "border-sky-400 bg-slate-900 shadow-lg ring-1 ring-sky-400/50"
                                   : isConditioned
-                                  ? "border-amber-400 bg-amber-950/25"
+                                  ? isLightCanvas
+                                    ? "border-amber-500 bg-amber-50/90 shadow-sm"
+                                    : "border-amber-400 bg-amber-950/25"
                                   : isLineageActive
-                                  ? "border-indigo-400/70 bg-slate-900/90"
+                                  ? isLightCanvas
+                                    ? "border-indigo-400 bg-indigo-50/40 shadow-sm"
+                                    : "border-indigo-400/70 bg-slate-900/90"
+                                  : isLightCanvas
+                                  ? "border-slate-200/90 bg-white shadow-sm hover:border-slate-300"
                                   : "border-slate-800/90 bg-slate-950/75 hover:border-slate-700"
                               }`}
                             >
@@ -1588,14 +1692,26 @@ export function NatureOfRealitySankey() {
                                     className="h-3.5 w-3.5 rounded-sm shrink-0 shadow-sm"
                                     style={{ backgroundColor: node.color }}
                                   />
-                                  <span className="text-xs font-bold text-white leading-snug">
+                                  <span
+                                    className={`text-xs font-bold leading-snug ${
+                                      isLightCanvas
+                                        ? "text-slate-900"
+                                        : "text-white"
+                                    }`}
+                                  >
                                     {node.shortLabel || node.name}
                                   </span>
                                 </div>
                                 <div className="text-right shrink-0">
                                   <span
                                     className="font-mono text-sm font-extrabold tabular-nums"
-                                    style={{ color: node.color }}
+                                    style={{
+                                      color:
+                                        isLightCanvas &&
+                                        node.color === "#FFC502"
+                                          ? "#b45309"
+                                          : node.color,
+                                    }}
                                   >
                                     {formatPct(node.probability, 1)}
                                   </span>
@@ -1603,7 +1719,13 @@ export function NatureOfRealitySankey() {
                               </div>
 
                               {/* Gradient Probability Fill Bar */}
-                              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-900">
+                              <div
+                                className={`mt-2 h-2 w-full overflow-hidden rounded-full ${
+                                  isLightCanvas
+                                    ? "bg-slate-100 border border-slate-200/70"
+                                    : "bg-slate-900"
+                                }`}
+                              >
                                 <div
                                   className="h-full rounded-full transition-all duration-300"
                                   style={{
@@ -1623,7 +1745,11 @@ export function NatureOfRealitySankey() {
                               >
                                 <label
                                   htmlFor={cardSliderId}
-                                  className="text-[10px] font-mono text-slate-400 shrink-0"
+                                  className={`text-[10px] font-mono shrink-0 ${
+                                    isLightCanvas
+                                      ? "text-slate-600"
+                                      : "text-slate-400"
+                                  }`}
                                 >
                                   Adjust:
                                 </label>
@@ -1642,7 +1768,7 @@ export function NatureOfRealitySankey() {
                                       Number(e.target.value) / 100
                                     )
                                   }
-                                  className="flex-1 h-1.5 accent-indigo-400"
+                                  className="flex-1 h-1.5 accent-indigo-600"
                                 />
                                 <button
                                   type="button"
@@ -1655,6 +1781,8 @@ export function NatureOfRealitySankey() {
                                   className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition-colors ${
                                     isConditioned
                                       ? "bg-amber-400 text-slate-950"
+                                      : isLightCanvas
+                                      ? "border border-slate-300 bg-slate-100 text-slate-700 hover:border-amber-500 hover:bg-amber-50 hover:text-amber-800"
                                       : "border border-slate-700 bg-slate-900 text-slate-300 hover:border-amber-400/50 hover:text-amber-300"
                                   }`}
                                 >
@@ -1663,11 +1791,29 @@ export function NatureOfRealitySankey() {
                               </div>
 
                               {/* Downstream Primary Flow + Crowd Delta */}
-                              <div className="mt-2 flex flex-wrap items-center justify-between gap-1 pt-1.5 border-t border-slate-800/60 text-[10px]">
+                              <div
+                                className={`mt-2 flex flex-wrap items-center justify-between gap-1 pt-1.5 border-t text-[10px] ${
+                                  isLightCanvas
+                                    ? "border-slate-200/80"
+                                    : "border-slate-800/60"
+                                }`}
+                              >
                                 {topChildNode && topOutLink ? (
-                                  <span className="text-slate-400 truncate max-w-[200px]">
+                                  <span
+                                    className={`truncate max-w-[200px] ${
+                                      isLightCanvas
+                                        ? "text-slate-600"
+                                        : "text-slate-400"
+                                    }`}
+                                  >
                                     Top flow:{" "}
-                                    <strong className="text-slate-200">
+                                    <strong
+                                      className={
+                                        isLightCanvas
+                                          ? "text-slate-900"
+                                          : "text-slate-200"
+                                      }
+                                    >
                                       →{" "}
                                       {topChildNode.shortLabel ||
                                         topChildNode.name}
@@ -1676,18 +1822,34 @@ export function NatureOfRealitySankey() {
                                     %)
                                   </span>
                                 ) : (
-                                  <span className="text-slate-500 font-mono">
+                                  <span
+                                    className={`font-mono ${
+                                      isLightCanvas
+                                        ? "text-slate-500"
+                                        : "text-slate-500"
+                                    }`}
+                                  >
                                     Terminal Cosmic Endpoint
                                   </span>
                                 )}
 
-                                <span className="font-mono text-slate-400 tabular-nums">
+                                <span
+                                  className={`font-mono tabular-nums ${
+                                    isLightCanvas
+                                      ? "text-slate-600"
+                                      : "text-slate-400"
+                                  }`}
+                                >
                                   Crowd: {formatPct(node.communityProbability, 1)}
                                   {Math.abs(deltaCrowd) >= 0.5 && (
                                     <span
                                       className={
                                         deltaCrowd > 0
-                                          ? "text-emerald-400 ml-1"
+                                          ? isLightCanvas
+                                            ? "text-emerald-700 font-bold ml-1"
+                                            : "text-emerald-400 ml-1"
+                                          : isLightCanvas
+                                          ? "text-rose-700 font-bold ml-1"
                                           : "text-rose-400 ml-1"
                                       }
                                     >
