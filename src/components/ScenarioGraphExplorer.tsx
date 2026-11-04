@@ -43,6 +43,7 @@ import {
   AI_2050_SIMPLE_TIMELINE_COLS,
 } from "@/data/ai2050-seed";
 import { resolveRiverLabelPlacements } from "@/lib/river-layout";
+import { NatureOfRealitySankey } from "@/components/NatureOfRealitySankey";
 
 /**
  * Definition of a node in the continuous Branching Probability River.
@@ -418,7 +419,7 @@ interface ScenarioGraphExplorerProps {
   comments: CommentItem[];
   forecastEvents: ForecastEvent[];
   initialSelectedNodeId?: string | null;
-  initialScenarioSlug?: "ai-2027" | "ai-2040" | "ai-2050";
+  initialScenarioSlug?: "ai-2027" | "ai-2040" | "ai-2050" | "nature-of-reality";
 }
 
 function clamp(val: number, min: number, max: number): number {
@@ -438,7 +439,7 @@ export function ScenarioGraphExplorer({
   initialScenarioSlug,
 }: ScenarioGraphExplorerProps) {
   const [activeScenarioSlug, setActiveScenarioSlug] = useState<
-    "ai-2027" | "ai-2040" | "ai-2050"
+    "ai-2027" | "ai-2040" | "ai-2050" | "nature-of-reality"
   >(
     initialScenarioSlug ??
       (scenario.slug === "ai-2050"
@@ -1513,10 +1514,42 @@ export function ScenarioGraphExplorer({
                 </div>
               </div>
             </button>
+            {/* 5. Nature of Reality: 7-Epoch Gradient Sankey & Deep-Dive Studio */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveScenarioSlug("nature-of-reality");
+                setSelectedNodeId(null);
+              }}
+              className={`group flex items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-xs transition-all ${
+                activeScenarioSlug === "nature-of-reality"
+                  ? "border-fuchsia-400 bg-fuchsia-500/20 text-white shadow-sm"
+                  : "border-slate-800 bg-slate-900/90 text-slate-300 hover:border-fuchsia-500/50 hover:text-white"
+              }`}
+            >
+              <span className="rounded bg-gradient-to-r from-indigo-500 via-pink-500 to-amber-400 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-white">
+                7-Epoch Sankey
+              </span>
+              <div>
+                <div className="font-bold leading-tight">
+                  Nature of Reality: Probabilistic Breakdown
+                </div>
+                <div className="hidden xl:block text-[10px] text-slate-400">
+                  Before Our Universe → Death → Simulation → Cosmic Fate (43 Nodes)
+                </div>
+              </div>
+            </button>
           </div>
 
           {/* Direct Route Links to Standalone Scenario Pages & Counterfactual Forks */}
           <div className="hidden lg:flex items-center gap-1.5 text-xs">
+            <Link
+              href="/scenarios/nature-of-reality"
+              className="inline-flex items-center gap-1 rounded-lg border border-fuchsia-500/40 bg-fuchsia-950/30 px-2.5 py-1 text-[11px] font-bold text-fuchsia-300 hover:border-fuchsia-400 hover:text-fuchsia-200"
+            >
+              <span>/nature-of-reality</span>
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
             <Link
               href="/scenarios/ai-2050"
               className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-sky-300 hover:border-sky-500/40 hover:text-sky-200"
@@ -1549,8 +1582,12 @@ export function ScenarioGraphExplorer({
         </div>
       </div>
 
-      {/* Clean Single-Row Subbar */}
-      <div className="shrink-0 border-b border-slate-800/80 bg-slate-950/95 px-4 py-1.5">
+      {activeScenarioSlug === "nature-of-reality" ? (
+        <NatureOfRealitySankey />
+      ) : (
+        <>
+          {/* Clean Single-Row Subbar */}
+          <div className="shrink-0 border-b border-slate-800/80 bg-slate-950/95 px-4 py-1.5">
         <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Instant Scenario Switcher Pill */}
@@ -1602,6 +1639,16 @@ export function ScenarioGraphExplorer({
                 }`}
               >
                 AI 2050 (Five Worlds)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveScenarioSlug("nature-of-reality");
+                  setSelectedNodeId(null);
+                }}
+                className="rounded-md px-2.5 py-0.5 font-semibold text-fuchsia-300 hover:bg-fuchsia-500/20 hover:text-white transition-colors"
+              >
+                Nature of Reality (Sankey)
               </button>
             </div>
 
@@ -2765,6 +2812,8 @@ export function ScenarioGraphExplorer({
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

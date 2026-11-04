@@ -105,6 +105,12 @@ export function Navbar() {
 
   const primaryLinks = [
     {
+      href: "/scenarios/nature-of-reality",
+      label: "Nature of Reality (Sankey)",
+      icon: Compass,
+      match: (p: string) => p.startsWith("/scenarios/nature-of-reality"),
+    },
+    {
       href: "/scenarios/ai-2050",
       label: "AI 2050 (5 Worlds)",
       icon: Compass,

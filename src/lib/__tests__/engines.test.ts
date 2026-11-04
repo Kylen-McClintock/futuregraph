@@ -734,4 +734,71 @@ describe("FutureGraph AI 2027 Canonical Dataset & Store Integration Tests", () =
   });
 });
 
+import {
+  computeNatureOfRealityGraph,
+  NATURE_OF_REALITY_EPOCHS,
+  NATURE_OF_REALITY_LINKS,
+  NATURE_OF_REALITY_NODES,
+  NATURE_OF_REALITY_PRESETS,
+} from "@/data/nature-of-reality-seed";
+
+describe("Nature of Reality 7-Epoch Gradient Sankey — Acceptance Tests", () => {
+  it("Test: preserves all 7 epochs, 43 Flourish nodes with exact hex colors & citations, and 119 links", () => {
+    expect(NATURE_OF_REALITY_EPOCHS).toHaveLength(7);
+    expect(NATURE_OF_REALITY_NODES).toHaveLength(43);
+    expect(NATURE_OF_REALITY_LINKS).toHaveLength(119);
+    expect(NATURE_OF_REALITY_PRESETS.length).toBeGreaterThanOrEqual(7);
+
+    for (const node of NATURE_OF_REALITY_NODES) {
+      expect(node.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
+      expect(node.summary.length).toBeGreaterThan(20);
+      expect(node.citations.length).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("Test: conserves 100% probability mass across Origin (Col 0), Conscious Fate (Col 2), and Cosmic Fate (Col 6)", () => {
+    const baseline = NATURE_OF_REALITY_PRESETS[0];
+    const graph = computeNatureOfRealityGraph(baseline.rootPriors, {});
+
+    const col0Sum = graph.nodes
+      .filter((n) => n.columnIndex === 0)
+      .reduce((acc, n) => acc + n.probability, 0);
+    const col2Sum = graph.nodes
+      .filter((n) => n.columnIndex === 2)
+      .reduce((acc, n) => acc + n.probability, 0);
+    const col6Sum = graph.nodes
+      .filter((n) => n.columnIndex === 6)
+      .reduce((acc, n) => acc + n.probability, 0);
+
+    expect(col0Sum).toBeCloseTo(1.0, 4);
+    expect(col2Sum).toBeCloseTo(1.0, 4);
+    expect(col6Sum).toBeCloseTo(1.0, 4);
+  });
+
+  it("Test: Bayesian and forward conditioning on a node (Given X = 100%) renormalizes upstream and downstream to 100%", () => {
+    const baseline = NATURE_OF_REALITY_PRESETS[0];
+    const conditioned = computeNatureOfRealityGraph(
+      baseline.rootPriors,
+      {},
+      "nor-c2-wake-up-simulation"
+    );
+
+    const wakeUpNode = conditioned.nodeMap.get("nor-c2-wake-up-simulation");
+    expect(wakeUpNode?.probability).toBeCloseTo(1.0, 4);
+
+    // Upstream Pre-existing Universe must become 100% because Wake Up only comes from Ancestor/Alien Simulation
+    const preExisting = conditioned.nodeMap.get("nor-c0-preexisting-universe");
+    expect(preExisting?.probability).toBeCloseTo(1.0, 4);
+
+    // Downstream Passive + Agentic Simulation must sum to 100%
+    const passive = conditioned.nodeMap.get("nor-c3-passive-simulation");
+    const agentic = conditioned.nodeMap.get("nor-c3-agentic-simulation");
+    expect((passive?.probability ?? 0) + (agentic?.probability ?? 0)).toBeCloseTo(
+      1.0,
+      4
+    );
+  });
+});
+
+
 
