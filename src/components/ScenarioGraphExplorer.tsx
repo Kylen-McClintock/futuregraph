@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   ArrowUp,
+  ArrowUpRight,
   ChevronDown,
   ChevronUp,
   Eye,
@@ -15,6 +17,7 @@ import {
   Plus,
   RotateCcw,
   Sliders,
+  Sparkles,
   Trophy,
 } from "lucide-react";
 import {
@@ -33,6 +36,12 @@ import {
   AI_2040_RIVER_SPECS,
   AI_2040_TIMELINE_COLS,
 } from "@/data/ai2040-seed";
+import {
+  AI_2050_COMPREHENSIVE_RIVER_SPECS,
+  AI_2050_COMPREHENSIVE_TIMELINE_COLS,
+  AI_2050_SIMPLE_RIVER_SPECS,
+  AI_2050_SIMPLE_TIMELINE_COLS,
+} from "@/data/ai2050-seed";
 
 /**
  * Definition of a node in the continuous Branching Probability River.
@@ -408,7 +417,7 @@ interface ScenarioGraphExplorerProps {
   comments: CommentItem[];
   forecastEvents: ForecastEvent[];
   initialSelectedNodeId?: string | null;
-  initialScenarioSlug?: "ai-2027" | "ai-2040";
+  initialScenarioSlug?: "ai-2027" | "ai-2040" | "ai-2050";
 }
 
 function clamp(val: number, min: number, max: number): number {
@@ -428,11 +437,31 @@ export function ScenarioGraphExplorer({
   initialScenarioSlug,
 }: ScenarioGraphExplorerProps) {
   const [activeScenarioSlug, setActiveScenarioSlug] = useState<
-    "ai-2027" | "ai-2040"
+    "ai-2027" | "ai-2040" | "ai-2050"
   >(
     initialScenarioSlug ??
-      (scenario.slug === "ai-2040" ? "ai-2040" : "ai-2027")
+      (scenario.slug === "ai-2050"
+        ? "ai-2050"
+        : scenario.slug === "ai-2040"
+        ? "ai-2040"
+        : "ai-2027")
   );
+  const [ai2050DepthMode, setAi2050DepthMode] = useState<
+    "simple" | "comprehensive"
+  >(() => {
+    if (
+      initialSelectedNodeId &&
+      !AI_2050_SIMPLE_RIVER_SPECS.some(
+        (s) => s.canonicalNodeId === initialSelectedNodeId
+      ) &&
+      AI_2050_COMPREHENSIVE_RIVER_SPECS.some(
+        (s) => s.canonicalNodeId === initialSelectedNodeId
+      )
+    ) {
+      return "comprehensive";
+    }
+    return "simple";
+  });
   const [selectedLens, setSelectedLens] =
     useState<ForecastLens>("demo_hypothesis");
   const [thicknessMode, setThicknessMode] = useState<"overall" | "conditional">(
@@ -448,13 +477,63 @@ export function ScenarioGraphExplorer({
   >({});
   const [outcomesPanelOpen, setOutcomesPanelOpen] = useState(true);
 
-  const activeRiverSpecs = useMemo(
-    () =>
-      activeScenarioSlug === "ai-2040"
-        ? AI_2040_RIVER_SPECS
-        : RIVER_TREE_SPECS,
-    [activeScenarioSlug]
-  );
+  const activeRiverSpecs = useMemo(() => {
+    if (activeScenarioSlug === "ai-2050") {
+      return ai2050DepthMode === "comprehensive"
+        ? AI_2050_COMPREHENSIVE_RIVER_SPECS
+        : AI_2050_SIMPLE_RIVER_SPECS;
+    }
+    return activeScenarioSlug === "ai-2040"
+      ? AI_2040_RIVER_SPECS
+      : RIVER_TREE_SPECS;
+  }, [activeScenarioSlug, ai2050DepthMode]);
+
+  const debateSummaryByCanonicalId = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        totalCount: number;
+        topHandle: string | null;
+        topPlatform: string | null;
+        topUpvotes: number | null;
+      }
+    >();
+    for (const arg of argumentsList) {
+      const prev = map.get(arg.nodeId) || {
+        totalCount: 0,
+        topHandle: null,
+        topPlatform: null,
+        topUpvotes: null,
+      };
+      const up =
+        arg.externalUpvotes ??
+        arg.reactions.made_me_reconsider +
+          arg.reactions.taught_me_something +
+          arg.reactions.strongest_evidence;
+      const isBetter = prev.topUpvotes === null || up > prev.topUpvotes;
+      map.set(arg.nodeId, {
+        totalCount: prev.totalCount + 1,
+        topHandle: isBetter ? arg.authorHandle : prev.topHandle,
+        topPlatform: isBetter
+          ? arg.externalPlatform ?? null
+          : prev.topPlatform,
+        topUpvotes: isBetter ? up : prev.topUpvotes,
+      });
+    }
+    for (const c of comments) {
+      const prev = map.get(c.nodeId) || {
+        totalCount: 0,
+        topHandle: c.authorHandle,
+        topPlatform: c.externalPlatform ?? null,
+        topUpvotes: c.externalUpvotes ?? null,
+      };
+      map.set(c.nodeId, {
+        ...prev,
+        totalCount: prev.totalCount + 1,
+      });
+    }
+    return map;
+  }, [argumentsList, comments]);
 
   // Light / Dark Mode state synced with Navbar & documentElement
   const [isLightMode, setIsLightMode] = useState(false);
@@ -568,6 +647,10 @@ export function ScenarioGraphExplorer({
         slow: 0.46,
         plana2040: 0.41,
         plancd2040: 0.29,
+        fizzle2050: 0.06,
+        recCiv2050: 0.76,
+        futurama2050: 0.68,
+        singularia2050: 0.67,
       };
     if (selectedLens === "ai_gemini")
       return {
@@ -576,6 +659,10 @@ export function ScenarioGraphExplorer({
         slow: 0.33,
         plana2040: 0.31,
         plancd2040: 0.4,
+        fizzle2050: 0.02,
+        recCiv2050: 0.66,
+        futurama2050: 0.64,
+        singularia2050: 0.62,
       };
     if (selectedLens === "ai_gpt")
       return {
@@ -584,6 +671,10 @@ export function ScenarioGraphExplorer({
         slow: 0.39,
         plana2040: 0.36,
         plancd2040: 0.34,
+        fizzle2050: 0.03,
+        recCiv2050: 0.68,
+        futurama2050: 0.63,
+        singularia2050: 0.58,
       };
     if (selectedLens === "community")
       return {
@@ -592,6 +683,10 @@ export function ScenarioGraphExplorer({
         slow: 0.41,
         plana2040: 0.38,
         plancd2040: 0.32,
+        fizzle2050: 0.03,
+        recCiv2050: 0.7113,
+        futurama2050: 0.6522,
+        singularia2050: 0.6071,
       };
     return {
       sc: 0.68,
@@ -599,6 +694,10 @@ export function ScenarioGraphExplorer({
       slow: 0.36,
       plana2040: 0.34,
       plancd2040: 0.36,
+      fizzle2050: 0.03,
+      recCiv2050: 0.7113,
+      futurama2050: 0.6522,
+      singularia2050: 0.6071,
     };
   }, [selectedLens]);
 
@@ -642,6 +741,23 @@ export function ScenarioGraphExplorer({
           return lensShiftMultiplier.plana2040;
         if (s.id === "r2040-plancd-race")
           return lensShiftMultiplier.plancd2040;
+        // AI 2050 lens shifts (Simple & Comprehensive)
+        if (s.id === "s2050-fizzle-yes" || s.id === "c2050-fizzle-end")
+          return lensShiftMultiplier.fizzle2050;
+        if (s.id === "s2050-fizzle-no" || s.id === "c2050-why-no-fizzle")
+          return 1 - lensShiftMultiplier.fizzle2050;
+        if (s.id === "s2050-civ-yes" || s.id === "c2050-why-civ-holds")
+          return lensShiftMultiplier.recCiv2050;
+        if (s.id === "s2050-civ-no" || s.id === "c2050-why-civ-breaks")
+          return 1 - lensShiftMultiplier.recCiv2050;
+        if (s.id === "s2050-futurama" || s.id === "c2050-futurama")
+          return lensShiftMultiplier.futurama2050;
+        if (s.id === "s2050-dystopia" || s.id === "c2050-dystopia")
+          return 1 - lensShiftMultiplier.futurama2050;
+        if (s.id === "s2050-singularia" || s.id === "c2050-singularia")
+          return lensShiftMultiplier.singularia2050;
+        if (s.id === "s2050-paperclip" || s.id === "c2050-paperclip")
+          return 1 - lensShiftMultiplier.singularia2050;
         return s.defaultConditionalProb;
       });
 
@@ -1242,6 +1358,165 @@ export function ScenarioGraphExplorer({
           : "bg-[#070b12] text-slate-100"
       }`}
     >
+      {/* Featured Branch & Other Available Branching Trees Strip */}
+      <div className="shrink-0 border-b border-slate-800/90 bg-slate-950 px-4 py-2">
+        <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-300">
+              <Sparkles className="h-3 w-3 text-amber-400" />
+              <span>Branching Trees</span>
+            </span>
+
+            {/* 1. Featured Branch: AI 2050 (Five Worlds of AI - Simple & Comprehensive) */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveScenarioSlug("ai-2050");
+                setAi2050DepthMode("simple");
+                setSelectedNodeId(null);
+                setConditionalOverrides({});
+                animateCameraTo(FULL_VIEWBOX);
+              }}
+              className={`group flex items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-xs transition-all ${
+                activeScenarioSlug === "ai-2050" && ai2050DepthMode === "simple"
+                  ? "border-sky-400 bg-sky-500/20 text-white shadow-sm"
+                  : "border-slate-800 bg-slate-900/90 text-slate-300 hover:border-sky-500/50 hover:text-white"
+              }`}
+            >
+              <span className="rounded bg-sky-400 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-slate-950">
+                Featured
+              </span>
+              <div>
+                <div className="font-bold leading-tight">
+                  AI 2050: Five Worlds (Simple 5-World Tree)
+                </div>
+                <div className="hidden xl:block text-[10px] text-slate-400">
+                  Metaculus #20683 • Futurama 45% • Dystopia 24% • Singularia 17%
+                </div>
+              </div>
+            </button>
+
+            {/* 2. AI 2050 Comprehensive Path (Why + 10 Sub-Worlds) */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveScenarioSlug("ai-2050");
+                setAi2050DepthMode("comprehensive");
+                setSelectedNodeId(null);
+                setConditionalOverrides({});
+                animateCameraTo(FULL_VIEWBOX);
+              }}
+              className={`group flex items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-xs transition-all ${
+                activeScenarioSlug === "ai-2050" &&
+                ai2050DepthMode === "comprehensive"
+                  ? "border-violet-400 bg-violet-500/20 text-white shadow-sm"
+                  : "border-slate-800 bg-slate-900/90 text-slate-300 hover:border-violet-500/50 hover:text-white"
+              }`}
+            >
+              <span className="rounded bg-violet-400/20 border border-violet-400/40 px-1.5 py-0.5 text-[10px] font-mono font-bold text-violet-300">
+                22 Nodes
+              </span>
+              <div>
+                <div className="font-bold leading-tight">
+                  AI 2050: Deep Path (Why + 10 Sub-Worlds)
+                </div>
+                <div className="hidden xl:block text-[10px] text-slate-400">
+                  Causal Midpoints + 10 Sub-Worlds + Cited Forum Arguments
+                </div>
+              </div>
+            </button>
+
+            {/* 3. AI 2027 Fast Takeoff Branching River */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveScenarioSlug("ai-2027");
+                setSelectedNodeId(null);
+                setConditionalOverrides({});
+                animateCameraTo(FULL_VIEWBOX);
+              }}
+              className={`group flex items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-xs transition-all ${
+                activeScenarioSlug === "ai-2027"
+                  ? "border-amber-400 bg-amber-500/20 text-white shadow-sm"
+                  : "border-slate-800 bg-slate-900/90 text-slate-300 hover:border-amber-500/50 hover:text-white"
+              }`}
+            >
+              <span className="rounded bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 text-[10px] font-mono font-bold text-amber-300">
+                2025–2030
+              </span>
+              <div>
+                <div className="font-bold leading-tight">
+                  AI 2027: Fast Takeoff & Oversight Fork
+                </div>
+                <div className="hidden xl:block text-[10px] text-slate-400">
+                  Keep Racing (52%) vs. Slow Down & Verify (36%)
+                </div>
+              </div>
+            </button>
+
+            {/* 4. AI 2040 Plan A vs Plans B-S Crossroads */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveScenarioSlug("ai-2040");
+                setSelectedNodeId(null);
+                setConditionalOverrides({});
+                animateCameraTo(FULL_VIEWBOX);
+              }}
+              className={`group flex items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-xs transition-all ${
+                activeScenarioSlug === "ai-2040"
+                  ? "border-emerald-400 bg-emerald-500/20 text-white shadow-sm"
+                  : "border-slate-800 bg-slate-900/90 text-slate-300 hover:border-emerald-500/50 hover:text-white"
+              }`}
+            >
+              <span className="rounded bg-emerald-500/20 border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-mono font-bold text-emerald-300">
+                2026–2040
+              </span>
+              <div>
+                <div className="font-bold leading-tight">
+                  AI 2040: Plan A vs. Plans B–S
+                </div>
+                <div className="hidden xl:block text-[10px] text-slate-400">
+                  2029 Crossroads & 2035 Expert Pause vs. Containment
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Direct Route Links to Standalone Scenario Pages & Counterfactual Forks */}
+          <div className="hidden lg:flex items-center gap-1.5 text-xs">
+            <Link
+              href="/scenarios/ai-2050"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-sky-300 hover:border-sky-500/40 hover:text-sky-200"
+            >
+              <span>/ai-2050</span>
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
+            <Link
+              href="/scenarios/ai-2027"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-amber-300 hover:border-amber-500/40 hover:text-amber-200"
+            >
+              <span>/ai-2027</span>
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
+            <Link
+              href="/scenarios/ai-2040"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-emerald-300 hover:border-emerald-500/40 hover:text-emerald-200"
+            >
+              <span>/ai-2040</span>
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
+            <Link
+              href="/scenarios/ai-2027/forks/fork-hardware-bottleneck-2029"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-violet-300 hover:border-violet-500/40 hover:text-violet-200"
+            >
+              <span>Hardware Fork</span>
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Clean Single-Row Subbar */}
       <div className="shrink-0 border-b border-slate-800/80 bg-slate-950/95 px-4 py-1.5">
         <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-2">
@@ -1280,15 +1555,89 @@ export function ScenarioGraphExplorer({
               >
                 AI 2040 (Plan A vs. Plans B–S)
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveScenarioSlug("ai-2050");
+                  setSelectedNodeId(null);
+                  setConditionalOverrides({});
+                  animateCameraTo(FULL_VIEWBOX);
+                }}
+                className={`rounded-md px-2.5 py-0.5 font-semibold transition-colors ${
+                  activeScenarioSlug === "ai-2050"
+                    ? "bg-sky-400 text-slate-950 font-extrabold"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                AI 2050 (Five Worlds)
+              </button>
             </div>
+
+            {/* AI 2050 Depth Mode Toggle: Simple Path (5 Worlds) vs Comprehensive Path (Why + 10 Sub-Worlds) */}
+            {activeScenarioSlug === "ai-2050" && (
+              <div className="inline-flex items-center rounded-lg border border-sky-500/40 bg-slate-900 p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAi2050DepthMode("simple");
+                    setConditionalOverrides({});
+                    if (
+                      selectedNodeId &&
+                      !AI_2050_SIMPLE_RIVER_SPECS.some(
+                        (s) => s.canonicalNodeId === selectedNodeId
+                      )
+                    ) {
+                      setSelectedNodeId(null);
+                    }
+                    animateCameraTo(FULL_VIEWBOX);
+                  }}
+                  className={`rounded-md px-2.5 py-0.5 font-semibold transition-colors ${
+                    ai2050DepthMode === "simple"
+                      ? "bg-sky-400 text-slate-950 font-extrabold"
+                      : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  Simple Path (5 Worlds)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAi2050DepthMode("comprehensive");
+                    setConditionalOverrides({});
+                    animateCameraTo(FULL_VIEWBOX);
+                  }}
+                  className={`rounded-md px-2.5 py-0.5 font-semibold transition-colors ${
+                    ai2050DepthMode === "comprehensive"
+                      ? "bg-violet-400 text-slate-950 font-extrabold"
+                      : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  Comprehensive Path (Why + 10 Sub-Worlds)
+                </button>
+              </div>
+            )}
 
             <div className="hidden md:flex items-center gap-1.5">
               <GitBranch className="h-3.5 w-3.5 text-amber-400" />
               <h1 className="text-xs sm:text-sm font-bold text-white">
-                {activeScenarioSlug === "ai-2040"
+                {activeScenarioSlug === "ai-2050"
+                  ? ai2050DepthMode === "simple"
+                    ? "Five Worlds of AI (Aaronson & Barak • Metaculus #20683)"
+                    : "Five Worlds of AI: Causal Mechanisms & 10 Sub-Worlds (2050)"
+                  : activeScenarioSlug === "ai-2040"
                   ? "AI 2040: Plan A & The 2029 Crossroads"
                   : "AI 2027 Branching Probability River"}
               </h1>
+              {activeScenarioSlug === "ai-2050" && (
+                <a
+                  href="https://www.metaculus.com/questions/20683/which-ai-world-will-come-to-pass-before-2050/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ml-1 rounded-md border border-sky-500/40 bg-sky-500/15 px-2 py-0.5 text-[11px] font-mono font-semibold text-sky-300 hover:bg-sky-500/25"
+                >
+                  Metaculus #20683 ↗
+                </a>
+              )}
             </div>
             <span className="hidden 2xl:inline text-xs text-slate-400">
               Line width & label size scale with probability • Click any node or
@@ -1336,7 +1685,9 @@ export function ScenarioGraphExplorer({
               >
                 <option value="demo_hypothesis" className="bg-slate-900">
                   Lens:{" "}
-                  {activeScenarioSlug === "ai-2040"
+                  {activeScenarioSlug === "ai-2050"
+                    ? "Metaculus #20683 Baseline"
+                    : activeScenarioSlug === "ai-2040"
                     ? "AI 2040 Baseline"
                     : "AI 2027 Baseline"}
                 </option>
@@ -1692,7 +2043,11 @@ export function ScenarioGraphExplorer({
 
               <g>
                 {/* Subtle Year Timeline Columns in Background */}
-                {(activeScenarioSlug === "ai-2040"
+                {(activeScenarioSlug === "ai-2050"
+                  ? ai2050DepthMode === "comprehensive"
+                    ? AI_2050_COMPREHENSIVE_TIMELINE_COLS
+                    : AI_2050_SIMPLE_TIMELINE_COLS
+                  : activeScenarioSlug === "ai-2040"
                   ? AI_2040_TIMELINE_COLS
                   : [
                       { x: 95, year: "2025" },
@@ -1736,12 +2091,22 @@ export function ScenarioGraphExplorer({
                   x={1380}
                   y={48}
                   textAnchor="middle"
-                  fill={isLightMode ? "#be123c" : "#fb7185"}
+                  fill={
+                    activeScenarioSlug === "ai-2050"
+                      ? isLightMode
+                        ? "#047857"
+                        : "#34d399"
+                      : isLightMode
+                      ? "#be123c"
+                      : "#fb7185"
+                  }
                   fontSize={11}
                   fontWeight={800}
                   letterSpacing="0.08em"
                 >
-                  {activeScenarioSlug === "ai-2040"
+                  {activeScenarioSlug === "ai-2050"
+                    ? "RECOGNIZABLE CIVILIZATION CONTINUES (69%): FUTURAMA (45%) VS. AI-DYSTOPIA (24%)"
+                    : activeScenarioSlug === "ai-2040"
                     ? "PLAN C/D & B: UNCONSTRAINED RACE OR CONTAINMENT → LOSS OF CONTROL / COLD WAR"
                     : "RACE PATH (UNCHECKED SCALING → AI TAKEOVER)"}
                 </text>
@@ -1749,12 +2114,22 @@ export function ScenarioGraphExplorer({
                   x={1380}
                   y={695}
                   textAnchor="middle"
-                  fill={isLightMode ? "#047857" : "#34d399"}
+                  fill={
+                    activeScenarioSlug === "ai-2050"
+                      ? isLightMode
+                        ? "#0369a1"
+                        : "#7dd3fc"
+                      : isLightMode
+                      ? "#047857"
+                      : "#34d399"
+                  }
                   fontSize={11}
                   fontWeight={800}
                   letterSpacing="0.08em"
                 >
-                  {activeScenarioSlug === "ai-2040"
+                  {activeScenarioSlug === "ai-2050"
+                    ? "POST-SINGULARITY REGIME (28%): SINGULARIA (17%) VS. PAPERCLIPALYPSE (11%)"
+                    : activeScenarioSlug === "ai-2040"
                     ? "PLAN A: VERIFIED SLOWDOWN + 2035 EXPERT PAUSE → SAFE 2040 ASI"
                     : "SLOWDOWN PATH (FREEZE + ALIGNED AI + VERIFIED TREATY)"}
                 </text>
@@ -1908,8 +2283,19 @@ export function ScenarioGraphExplorer({
                     ) ?? false;
                   const isForkHub =
                     node.id === "river-2027-oct-fork" ||
-                    node.id === "r2040-2029-crossroads";
+                    node.id === "r2040-2029-crossroads" ||
+                    node.id === "s2050-root" ||
+                    node.id === "s2050-fizzle-no" ||
+                    node.id === "s2050-civ-yes" ||
+                    node.id === "s2050-civ-no" ||
+                    node.id === "c2050-root" ||
+                    node.id === "c2050-q2-civ" ||
+                    node.id === "c2050-q3a-good-civ" ||
+                    node.id === "c2050-q3b-good-sing";
                   const isSideBranch = node.track === "offramp";
+                  const debateSummary = debateSummaryByCanonicalId.get(
+                    node.canonicalNodeId
+                  );
 
                   const overallPct = Math.round(node.overallProb * 100);
                   const condPct = Math.round(node.conditionalProb * 100);
@@ -1979,6 +2365,13 @@ export function ScenarioGraphExplorer({
                     ? "← PREVIOUS"
                     : isNextNode
                     ? "NEXT →"
+                    : (isHovered || activeScenarioSlug === "ai-2050") &&
+                      debateSummary?.topHandle
+                    ? `@${debateSummary.topHandle}${
+                        debateSummary.topUpvotes
+                          ? ` ▲${debateSummary.topUpvotes}`
+                          : ""
+                      }`
                     : null;
 
                   // Keep default labels visually clean: show verbose "(XX% split)" math only when clicked/hovered
@@ -2215,37 +2608,64 @@ export function ScenarioGraphExplorer({
         ) : (
           /* Table View (When toggled) */
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="mx-auto max-w-4xl rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+            <div className="mx-auto max-w-5xl rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-800 text-slate-400 font-mono uppercase">
-                    <th className="py-2.5 px-3">Date</th>
+                    <th className="py-2.5 px-3">Date / Stage</th>
                     <th className="py-2.5 px-3">Branch Milestone</th>
                     <th className="py-2.5 px-3">Chance Given Parent</th>
                     <th className="py-2.5 px-3">Overall Probability</th>
+                    <th className="py-2.5 px-3">Top Cited Forum Voice</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {computedRiverNodes.map((n) => (
-                    <tr
-                      key={n.id}
-                      onClick={() => setSelectedNodeId(n.canonicalNodeId)}
-                      className="cursor-pointer hover:bg-slate-800/50"
-                    >
-                      <td className="py-2.5 px-3 font-mono text-slate-400">
-                        {n.dateTag}
-                      </td>
-                      <td className="py-2.5 px-3 font-bold text-white">
-                        {n.shortName}
-                      </td>
-                      <td className="py-2.5 px-3 font-mono text-sky-300">
-                        {Math.round(n.conditionalProb * 100)}%
-                      </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-amber-400">
-                        {Math.round(n.overallProb * 100)}%
-                      </td>
-                    </tr>
-                  ))}
+                  {computedRiverNodes.map((n) => {
+                    const ds = debateSummaryByCanonicalId.get(
+                      n.canonicalNodeId
+                    );
+                    return (
+                      <tr
+                        key={n.id}
+                        onClick={() => setSelectedNodeId(n.canonicalNodeId)}
+                        className="cursor-pointer hover:bg-slate-800/50"
+                      >
+                        <td className="py-2.5 px-3 font-mono text-slate-400">
+                          {n.dateTag}
+                        </td>
+                        <td className="py-2.5 px-3 font-bold text-white">
+                          {n.shortName}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-sky-300 tabular-nums">
+                          {(n.conditionalProb * 100).toFixed(1)}%
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-amber-400 tabular-nums">
+                          {(n.overallProb * 100).toFixed(1)}%
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-slate-300">
+                          {ds?.topHandle ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="text-sky-300 font-semibold">
+                                @{ds.topHandle}
+                              </span>
+                              {ds.topPlatform && (
+                                <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+                                  {ds.topPlatform}
+                                </span>
+                              )}
+                              {ds.topUpvotes !== null && (
+                                <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-300 font-bold tabular-nums">
+                                  ▲ {ds.topUpvotes}
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

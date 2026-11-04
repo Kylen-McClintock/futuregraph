@@ -259,14 +259,22 @@ export function NodeAuditPanel({
       : "bg-violet-500/15 text-violet-300 border-violet-500/30";
 
   const isAI2040 = node.scenarioId === "scen-ai-2040";
+  const isAI2050 = node.scenarioId === "scen-ai-2050";
+  const scenarioSlug = isAI2050
+    ? "ai-2050"
+    : isAI2040
+    ? "ai-2040"
+    : "ai-2027";
   const provenanceLabel =
     node.provenanceType === "observed_history"
       ? "Observed Reality (as of Nov 2026)"
       : node.question?.authorDocumentedProb !== null &&
         node.question?.authorDocumentedProb !== undefined
-      ? `Documented Supplement Prob (${(node.question.authorDocumentedProb * 100).toFixed(1)}%)`
+      ? `Documented Baseline Prob (${(node.question.authorDocumentedProb * 100).toFixed(1)}%)`
       : node.provenanceType === "operationalized_question"
       ? "Operationalized Benchmark Question"
+      : isAI2050
+      ? "Metaculus #20683 • Five Worlds of AI"
       : isAI2040
       ? "Original AI 2040 Scenario Milestone"
       : "Original AI 2027 Scenario Milestone";
@@ -299,7 +307,7 @@ export function NodeAuditPanel({
           <div className="flex items-center gap-1.5">
             {!standalone && (
               <Link
-                href={`/scenarios/${isAI2040 ? "ai-2040" : "ai-2027"}/n/${node.id}`}
+                href={`/scenarios/${scenarioSlug}/n/${node.id}`}
                 className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-xs text-slate-200 hover:border-amber-500/50 hover:text-amber-300"
                 title="Open standalone deep-link page"
               >
@@ -471,6 +479,91 @@ export function NodeAuditPanel({
                     {node.question.authorProbCitation}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Top Upvoted Forum Arguments Preview (Metaculus / LessWrong / Blogs) */}
+            {args.length > 0 && (
+              <div className="rounded-xl border border-violet-500/30 bg-violet-950/15 p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-violet-300 flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5 text-violet-400" />
+                    <span>
+                      Top Upvoted Arguments ({args.length} Arguments
+                      {comments.length > 0 ? ` • ${comments.length} Replies` : ""})
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("debate")}
+                    className="rounded-lg border border-violet-500/40 bg-violet-500/20 px-2.5 py-1 text-[11px] font-semibold text-violet-200 hover:bg-violet-500/30"
+                  >
+                    Full Thread & Replies →
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {args.slice(0, 3).map((arg) => (
+                    <div
+                      key={arg.id}
+                      className="rounded-lg border border-slate-800/90 bg-slate-950/85 p-3 space-y-1.5"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                              arg.stance === "for"
+                                ? "bg-emerald-500/20 text-emerald-300"
+                                : arg.stance === "against"
+                                ? "bg-rose-500/20 text-rose-300"
+                                : "bg-amber-500/20 text-amber-300"
+                            }`}
+                          >
+                            {arg.stance.replace("_", " ")}
+                          </span>
+                          <Link
+                            href={`/u/${arg.authorHandle}`}
+                            className="text-xs font-bold text-sky-300 hover:underline"
+                          >
+                            @{arg.authorHandle}
+                          </Link>
+                          <span className="text-[11px] text-slate-400">
+                            ({arg.authorName})
+                          </span>
+                          {arg.externalPlatform && (
+                            <span className="rounded bg-slate-800 border border-slate-700 px-1.5 py-0.5 text-[10px] font-mono text-slate-300">
+                              {arg.externalPlatform}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {arg.externalUpvotes !== undefined && (
+                            <span className="rounded bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-mono font-bold text-emerald-300 tabular-nums">
+                              ▲ {arg.externalUpvotes}
+                            </span>
+                          )}
+                          {arg.externalSourceUrl && (
+                            <a
+                              href={arg.externalSourceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-0.5 rounded bg-sky-500/15 border border-sky-500/30 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300 hover:bg-sky-500/25"
+                            >
+                              <span>Source</span>
+                              <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-xs font-bold text-white">
+                        {arg.thesis}
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        {arg.reasoning}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -772,7 +865,7 @@ export function NodeAuditPanel({
                 className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-2.5"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
                         arg.stance === "for"
@@ -795,10 +888,33 @@ export function NodeAuditPanel({
                         AI AGENT
                       </span>
                     )}
+                    {arg.externalPlatform && (
+                      <span className="rounded bg-slate-800 border border-slate-700 px-1.5 py-0.5 text-[10px] font-mono text-slate-300">
+                        {arg.externalPlatform}
+                      </span>
+                    )}
+                    {arg.externalUpvotes !== undefined && (
+                      <span className="rounded bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-mono font-bold text-emerald-300 tabular-nums">
+                        ▲ {arg.externalUpvotes} upvotes
+                      </span>
+                    )}
                   </div>
-                  <span className="text-[11px] font-mono text-slate-500">
-                    {arg.createdAt.slice(0, 10)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {arg.externalSourceUrl && (
+                      <a
+                        href={arg.externalSourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-md border border-sky-500/30 bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300 hover:bg-sky-500/25"
+                      >
+                        <span>Original Post</span>
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    )}
+                    <span className="text-[11px] font-mono text-slate-500">
+                      {arg.createdAt.slice(0, 10)}
+                    </span>
+                  </div>
                 </div>
 
                 <h4 className="text-sm font-bold text-white">{arg.thesis}</h4>
@@ -855,11 +971,39 @@ export function NodeAuditPanel({
                       c.parentCommentId ? "ml-5 border-l-2 border-l-sky-500/50" : ""
                     }`}
                   >
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
-                      <span className="font-semibold text-slate-200">
-                        {c.authorName} (@{c.authorHandle})
-                      </span>
-                      <span>{c.createdAt.slice(0, 10)}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-slate-400 mb-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Link
+                          href={`/u/${c.authorHandle}`}
+                          className="font-semibold text-sky-300 hover:underline"
+                        >
+                          {c.authorName} (@{c.authorHandle})
+                        </Link>
+                        {c.externalPlatform && (
+                          <span className="rounded bg-slate-800 border border-slate-700 px-1.5 py-0.5 text-[10px] font-mono text-slate-300">
+                            {c.externalPlatform}
+                          </span>
+                        )}
+                        {c.externalUpvotes !== undefined && (
+                          <span className="rounded bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-mono font-bold text-emerald-300 tabular-nums">
+                            ▲ {c.externalUpvotes}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {c.externalSourceUrl && (
+                          <a
+                            href={c.externalSourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-0.5 rounded bg-sky-500/15 border border-sky-500/30 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300 hover:bg-sky-500/25"
+                          >
+                            <span>Source</span>
+                            <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                        <span>{c.createdAt.slice(0, 10)}</span>
+                      </div>
                     </div>
                     <p className="text-slate-300">{c.body}</p>
                   </div>
@@ -1182,7 +1326,7 @@ export function NodeAuditPanel({
             <button
               type="button"
               onClick={() => {
-                const url = `${window.location.origin}/scenarios/ai-2027/n/${node.id}?challengeProb=${myProbPct}`;
+                const url = `${window.location.origin}/scenarios/${scenarioSlug}/n/${node.id}?challengeProb=${myProbPct}`;
                 navigator.clipboard.writeText(url);
                 setCopiedChallenge(true);
                 setTimeout(() => setCopiedChallenge(false), 2500);

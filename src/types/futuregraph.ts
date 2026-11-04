@@ -209,6 +209,9 @@ export interface ArgumentItem {
   reasoning: string;
   targetAssumption?: string;
   sourceIds: string[];
+  externalSourceUrl?: string;
+  externalPlatform?: string;
+  externalUpvotes?: number;
   reactions: {
     made_me_reconsider: number;
     taught_me_something: number;
@@ -227,6 +230,9 @@ export interface CommentItem {
   authorHandle: string;
   authorName: string;
   authorType: ParticipantType;
+  externalPlatform?: string;
+  externalSourceUrl?: string;
+  externalUpvotes?: number;
   body: string;
   createdAt: string;
 }

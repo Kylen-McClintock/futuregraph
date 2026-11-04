@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Award, Bot, ShieldCheck, User } from "lucide-react";
+import { Award, Bot, ExternalLink, ShieldCheck, User } from "lucide-react";
 import { getStore } from "@/lib/store";
 import { computeBrierScore } from "@/lib/probability-engine";
 
@@ -96,7 +96,13 @@ export default function ForecasterProfilePage({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Link
-                    href={`/scenarios/ai-2027/n/${fe.nodeId}`}
+                    href={`/scenarios/${
+                      node?.scenarioId === "scen-ai-2050"
+                        ? "ai-2050"
+                        : node?.scenarioId === "scen-ai-2040"
+                        ? "ai-2040"
+                        : "ai-2027"
+                    }/n/${fe.nodeId}`}
                     className="text-sm font-bold text-white hover:text-amber-300"
                   >
                     {node?.title || fe.nodeId}
@@ -130,21 +136,63 @@ export default function ForecasterProfilePage({
       {userArguments.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-bold text-white">
-            Authored Steelman Arguments ({userArguments.length})
+            Authored & Cited Arguments ({userArguments.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {userArguments.map((arg) => (
-              <div
-                key={arg.id}
-                className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-2"
-              >
-                <div className="text-xs font-mono uppercase text-amber-300">
-                  {arg.stance}
+            {userArguments.map((arg) => {
+              const argNode = store.nodes.find((n) => n.id === arg.nodeId);
+              const argScenSlug =
+                argNode?.scenarioId === "scen-ai-2050"
+                  ? "ai-2050"
+                  : argNode?.scenarioId === "scen-ai-2040"
+                  ? "ai-2040"
+                  : "ai-2027";
+              return (
+                <div
+                  key={arg.id}
+                  className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-2"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono uppercase text-amber-300">
+                        {arg.stance}
+                      </span>
+                      {arg.externalPlatform && (
+                        <span className="rounded bg-slate-800 border border-slate-700 px-1.5 py-0.5 text-[10px] font-mono text-slate-300">
+                          {arg.externalPlatform}
+                        </span>
+                      )}
+                      {arg.externalUpvotes !== undefined && (
+                        <span className="rounded bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-mono font-bold text-emerald-300 tabular-nums">
+                          ▲ {arg.externalUpvotes}
+                        </span>
+                      )}
+                    </div>
+                    {arg.externalSourceUrl && (
+                      <a
+                        href={arg.externalSourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/25"
+                      >
+                        <span>Original Source</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                  {argNode && (
+                    <Link
+                      href={`/scenarios/${argScenSlug}/n/${argNode.id}`}
+                      className="block text-xs font-mono text-sky-400 hover:underline"
+                    >
+                      Node: {argNode.title}
+                    </Link>
+                  )}
+                  <h3 className="text-sm font-bold text-white">{arg.thesis}</h3>
+                  <p className="text-xs text-slate-300">{arg.reasoning}</p>
                 </div>
-                <h3 className="text-sm font-bold text-white">{arg.thesis}</h3>
-                <p className="text-xs text-slate-300">{arg.reasoning}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

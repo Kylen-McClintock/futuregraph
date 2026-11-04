@@ -105,11 +105,19 @@ export function Navbar() {
 
   const primaryLinks = [
     {
-      href: "/scenarios/ai-2027",
-      label: "AI 2027 Map",
+      href: "/scenarios/ai-2050",
+      label: "AI 2050 (5 Worlds)",
       icon: Compass,
       match: (p: string) =>
         p === "/" ||
+        p === "/scenarios/ai-2050" ||
+        p.startsWith("/scenarios/ai-2050/n/"),
+    },
+    {
+      href: "/scenarios/ai-2027",
+      label: "AI 2027 Map",
+      icon: GitBranch,
+      match: (p: string) =>
         p === "/scenarios/ai-2027" ||
         p.startsWith("/scenarios/ai-2027/n/"),
     },
@@ -191,9 +199,11 @@ export function Navbar() {
                 FutureGraph
               </span>
               <span className="hidden md:inline-block rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300">
-                {pathname.startsWith("/scenarios/ai-2040")
+                {pathname.startsWith("/scenarios/ai-2050")
+                  ? "AI 2050 • 5 Worlds"
+                  : pathname.startsWith("/scenarios/ai-2040")
                   ? "AI 2040"
-                  : "AI 2027 & 2040"}
+                  : "AI 2027–2050"}
               </span>
             </div>
           </Link>

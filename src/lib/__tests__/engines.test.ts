@@ -549,5 +549,53 @@ describe("FutureGraph AI 2027 Canonical Dataset & Store Integration Tests", () =
     });
     expect(forkSub.fork.nodeProbabilityOverrides["node-mar-2027-algorithmic-breakthroughs"]).toBe(0.25);
   });
+
+  it("Test: AI 2050 Five Worlds Simple (9 nodes) & Comprehensive (22 nodes) trees sum to 100% and include cited forum arguments", async () => {
+    const {
+      AI_2050_SIMPLE_RIVER_SPECS,
+      AI_2050_COMPREHENSIVE_RIVER_SPECS,
+      AI_2050_NODES,
+      AI_2050_ARGUMENTS,
+    } = await import("@/data/ai2050-seed");
+
+    expect(AI_2050_SIMPLE_RIVER_SPECS).toHaveLength(9);
+    expect(AI_2050_COMPREHENSIVE_RIVER_SPECS).toHaveLength(22);
+    expect(AI_2050_NODES).toHaveLength(22);
+
+    const computeTerminalSum = (specs: typeof AI_2050_SIMPLE_RIVER_SPECS) => {
+      const parentSet = new Set(specs.map((s) => s.parentId).filter(Boolean));
+      const overallMap = new Map<string, number>();
+      for (const s of specs) {
+        if (!s.parentId) {
+          overallMap.set(s.id, 1.0);
+        } else {
+          const p = overallMap.get(s.parentId) ?? 1.0;
+          overallMap.set(s.id, p * s.defaultConditionalProb);
+        }
+      }
+      const terminals = specs.filter((s) => !parentSet.has(s.id));
+      const sum = terminals.reduce((acc, t) => acc + (overallMap.get(t.id) ?? 0), 0);
+      return { terminals, sum };
+    };
+
+    const simpleRes = computeTerminalSum(AI_2050_SIMPLE_RIVER_SPECS);
+    expect(simpleRes.terminals).toHaveLength(5);
+    expect(simpleRes.sum).toBeCloseTo(1.0, 2);
+
+    const compRes = computeTerminalSum(AI_2050_COMPREHENSIVE_RIVER_SPECS);
+    expect(compRes.terminals).toHaveLength(10);
+    expect(compRes.sum).toBeCloseTo(1.0, 2);
+
+    // Every AI 2050 node has at least one curated forum argument with platform, source URL, and upvotes
+    for (const node of AI_2050_NODES) {
+      const nodeArgs = AI_2050_ARGUMENTS.filter((a) => a.nodeId === node.id);
+      expect(nodeArgs.length).toBeGreaterThanOrEqual(1);
+      for (const arg of nodeArgs) {
+        expect(arg.externalPlatform).toBeTruthy();
+        expect(arg.externalSourceUrl).toMatch(/^https?:\/\//);
+        expect(arg.externalUpvotes).toBeGreaterThan(0);
+      }
+    }
+  });
 });
 

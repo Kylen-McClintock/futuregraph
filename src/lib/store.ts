@@ -25,6 +25,16 @@ import {
   AI_2040_NODE_SOURCES,
   AI_2040_NODES,
 } from "@/data/ai2040-seed";
+import {
+  AI_2050_ARGUMENTS,
+  AI_2050_COMMENTS,
+  AI_2050_EDGES,
+  AI_2050_FORECAST_EVENTS,
+  AI_2050_LENS_PRIORS_BY_NODE,
+  AI_2050_NODE_SOURCES,
+  AI_2050_NODES,
+  AI_2050_PROFILES,
+} from "@/data/ai2050-seed";
 import { createServerAuditReceipt } from "@/lib/audit-receipt";
 import { propagateGraphProbabilities, validateProbability } from "@/lib/probability-engine";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -35,19 +45,43 @@ declare global {
 }
 
 export function getStore(): ScenarioDataset {
-  if (!global.__FUTUREGRAPH_STORE__) {
+  const needsInit =
+    !global.__FUTUREGRAPH_STORE__ ||
+    !global.__FUTUREGRAPH_STORE__.nodes.some(
+      (n) => n.id === "node-2050-q1-will-ai-fizzle"
+    );
+
+  if (needsInit) {
     const base = getInitialDataset();
-    Object.assign(LENS_PRIORS_BY_NODE, AI_2040_LENS_PRIORS_BY_NODE);
+    Object.assign(
+      LENS_PRIORS_BY_NODE,
+      AI_2040_LENS_PRIORS_BY_NODE,
+      AI_2050_LENS_PRIORS_BY_NODE
+    );
     global.__FUTUREGRAPH_STORE__ = {
       ...base,
-      nodes: [...base.nodes, ...AI_2040_NODES],
-      edges: [...base.edges, ...AI_2040_EDGES],
-      nodeSources: [...base.nodeSources, ...AI_2040_NODE_SOURCES],
-      arguments: [...base.arguments, ...AI_2040_ARGUMENTS],
-      forecastEvents: [...base.forecastEvents, ...AI_2040_FORECAST_EVENTS],
+      nodes: [...base.nodes, ...AI_2040_NODES, ...AI_2050_NODES],
+      edges: [...base.edges, ...AI_2040_EDGES, ...AI_2050_EDGES],
+      nodeSources: [
+        ...base.nodeSources,
+        ...AI_2040_NODE_SOURCES,
+        ...AI_2050_NODE_SOURCES,
+      ],
+      arguments: [
+        ...base.arguments,
+        ...AI_2040_ARGUMENTS,
+        ...AI_2050_ARGUMENTS,
+      ],
+      comments: [...base.comments, ...AI_2050_COMMENTS],
+      forecastEvents: [
+        ...base.forecastEvents,
+        ...AI_2040_FORECAST_EVENTS,
+        ...AI_2050_FORECAST_EVENTS,
+      ],
+      profiles: [...base.profiles, ...AI_2050_PROFILES],
     };
   }
-  return global.__FUTUREGRAPH_STORE__;
+  return global.__FUTUREGRAPH_STORE__!;
 }
 
 export function getBasePriorsForLens(lens: ForecastLens = "demo_hypothesis"): Record<string, number> {
