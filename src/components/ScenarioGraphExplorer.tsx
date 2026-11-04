@@ -2284,14 +2284,14 @@ export function ScenarioGraphExplorer({
                   const isForkHub =
                     node.id === "river-2027-oct-fork" ||
                     node.id === "r2040-2029-crossroads" ||
-                    node.id === "s2050-root" ||
-                    node.id === "s2050-fizzle-no" ||
-                    node.id === "s2050-civ-yes" ||
-                    node.id === "s2050-civ-no" ||
-                    node.id === "c2050-root" ||
-                    node.id === "c2050-q2-civ" ||
-                    node.id === "c2050-q3a-good-civ" ||
-                    node.id === "c2050-q3b-good-sing";
+                    node.id === "r2050-s-q1-fizzle" ||
+                    node.id === "r2050-s-q2-civ" ||
+                    node.id === "r2050-s-q3a-good" ||
+                    node.id === "r2050-s-q3b-good" ||
+                    node.id === "r2050-c-q1-fizzle" ||
+                    node.id === "r2050-c-q2-civ" ||
+                    node.id === "r2050-c-q3a-good" ||
+                    node.id === "r2050-c-q3b-good";
                   const isSideBranch = node.track === "offramp";
                   const debateSummary = debateSummaryByCanonicalId.get(
                     node.canonicalNodeId
@@ -2365,7 +2365,9 @@ export function ScenarioGraphExplorer({
                     ? "← PREVIOUS"
                     : isNextNode
                     ? "NEXT →"
-                    : (isHovered || activeScenarioSlug === "ai-2050") &&
+                    : (isHovered ||
+                        !isSideBranch ||
+                        activeScenarioSlug === "ai-2050") &&
                       debateSummary?.topHandle
                     ? `@${debateSummary.topHandle}${
                         debateSummary.topUpvotes

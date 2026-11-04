@@ -1163,53 +1163,693 @@ export const AI_2040_NODE_SOURCES: NodeSourceLink[] = AI_2040_NODES.map(
 );
 
 export const AI_2040_ARGUMENTS: ArgumentItem[] = [
+  // 1. 2026: AI Infrastructure & Tax Shift
+  {
+    id: "arg-2040-2026-infra-1",
+    nodeId: "node-2040-2026-infra",
+    authorId: "prof-anton-korinek",
+    authorHandle: "anton_korinek",
+    authorName: "Prof. Anton Korinek (UVA / NBER / Brookings)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Shifting fiscal revenue from payroll taxes to compute, energy, and capital taxation early in the gigawatt buildout is essential to prevent structural deficit collapse as cognitive automation scales (NBER w32255).",
+    reasoning:
+      "Over 75% of federal tax revenue in OECD economies derives from human labor income (income + payroll taxes). In 'Scenarios for the Transition to AGI' (NBER w32255), we show that once AI substitutes for cognitive labor, the labor share of GDP falls steeply; establishing compute and datacenter capital taxation in 2026–2028 builds the fiscal plumbing required for the 2033 Citizen's Dividend.",
+    targetAssumption: "2026 Compute & Capital Tax Foundation",
+    sourceIds: ["src-2040-1"],
+    externalPlatform: "NBER Working Paper w32255",
+    externalSourceUrl: "https://www.nber.org/papers/w32255",
+    externalUpvotes: 168,
+    reactions: {
+      made_me_reconsider: 54,
+      taught_me_something: 82,
+      strongest_evidence: 69,
+    },
+    payloadHash: "sha256-arg-2040-2026-infra-1",
+    createdAt: "2026-10-10T10:00:00Z",
+  },
+  {
+    id: "arg-2040-2026-infra-2",
+    nodeId: "node-2040-2026-infra",
+    authorId: "prof-daron-acemoglu",
+    authorHandle: "daron_acemoglu",
+    authorName: "Prof. Daron Acemoglu (MIT / NBER)",
+    authorType: "human",
+    stance: "against",
+    thesis:
+      "US tax policy has historically subsidized capital automation over human labor; reversing that asymmetry faces fierce political economy headwinds before mass displacement is undeniable.",
+    reasoning:
+      "Accelerated depreciation and R&D credits currently tax software and hardware capital at a much lower marginal rate than human employees ( under 5% vs ~25–30% on labor). Correcting this distortion in 2026–2027 requires overcoming intense national-competitiveness lobbying from hyperscalers.",
+    targetAssumption: "Political Economy Friction on Early Capital Tax Shift",
+    sourceIds: ["src-2040-1"],
+    externalPlatform: "MIT / NBER Policy Analysis",
+    externalSourceUrl: "https://www.nber.org/papers/w32487",
+    externalUpvotes: 152,
+    reactions: {
+      made_me_reconsider: 49,
+      taught_me_something: 71,
+      strongest_evidence: 58,
+    },
+    payloadHash: "sha256-arg-2040-2026-infra-2",
+    createdAt: "2026-10-10T14:00:00Z",
+  },
+
+  // 2. 2027: Megaclusters & Labor Wave
+  {
+    id: "arg-2040-2027-mega-1",
+    nodeId: "node-2040-2027-megaclusters",
+    authorId: "prof-epoch-ai",
+    authorHandle: "epoch_ai",
+    authorName: "Epoch AI Research (Sevilla, Besiroglu et al.)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Multi-gigawatt training clusters ($100B+ capex) are physically achievable by 2027–2028 via optical multi-campus interconnects and dedicated nuclear/gas generation (arXiv:2408.14906).",
+    reasoning:
+      "Our bottom-up audit of TSMC CoWoS packaging, HBM3e/HBM4 supply, and US utility queues shows that frontier labs can scale training runs to 10^28–10^29 FLOP by 2027–2028 (82% branch probability), driving the first major wave of routine white-collar task automation.",
+    targetAssumption: "P(Megaclusters & Labor Wave in 2027) = 82%",
+    sourceIds: ["src-2040-2"],
+    externalPlatform: "Epoch AI / arXiv:2408.14906",
+    externalSourceUrl: "https://arxiv.org/abs/2408.14906",
+    externalUpvotes: 164,
+    reactions: {
+      made_me_reconsider: 51,
+      taught_me_something: 79,
+      strongest_evidence: 66,
+    },
+    payloadHash: "sha256-arg-2040-2027-mega-1",
+    createdAt: "2026-10-12T11:00:00Z",
+  },
+
+  // 3. 2027 Off-Ramp: Scaling Wall & Grid Freeze
+  {
+    id: "arg-2040-2027-wall-1",
+    nodeId: "node-2040-2027-scaling-wall",
+    authorId: "prof-Jgalt",
+    authorHandle: "Jgalt",
+    authorName: "Jgalt (Metaculus Grandmaster)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "In ~18% of worlds, high-voltage transformer shortages, NEPA permitting freezes, and diminishing returns on synthetic RL environments stall frontier progress in 2027.",
+    reasoning:
+      "Large power transformers currently have 3–4 year manufacturing backlogs, and if test-time RL fails to generalize beyond verifiable coding/math into messy long-horizon domains, hyperscaler capex growth could pause—delaying the AGI crossroads into the late 2030s.",
+    targetAssumption: "P(Scaling Wall & Grid Freeze in 2027) = 18%",
+    sourceIds: ["src-2040-3"],
+    externalPlatform: "Metaculus (+89 Upvotes)",
+    externalSourceUrl: "https://www.metaculus.com/",
+    externalUpvotes: 89,
+    reactions: {
+      made_me_reconsider: 36,
+      taught_me_something: 54,
+      strongest_evidence: 42,
+    },
+    payloadHash: "sha256-arg-2040-2027-wall-1",
+    createdAt: "2026-10-12T15:00:00Z",
+  },
+
+  // 4. 2028: Near-Automated AI R&D
+  {
+    id: "arg-2040-2028-autord-1",
+    nodeId: "node-2040-2028-automated-rd",
+    authorId: "prof-metr-evals",
+    authorHandle: "metr_evals",
+    authorName: "Kwa et al. (METR Autonomous Evals)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Extrapolating METR's 7-month horizon doubling time (arXiv:2503.14499) to 2028 reaches week-long autonomous ML engineering tasks—automating >80% of frontier AI R&D.",
+    reasoning:
+      "At a 7-month doubling rate, autonomous task horizons expand from ~1 hour in 2025 to ~32–64 hours (full work-week engineering sprints) by 2028. At that threshold, AI research agents autonomously design, execute, debug, and analyze complete ML architecture experiments.",
+    targetAssumption: "P(Near-Automated AI R&D in 2028 | Megaclusters) = 85%",
+    sourceIds: ["src-2040-4"],
+    externalPlatform: "arXiv:2503.14499 (METR)",
+    externalSourceUrl: "https://arxiv.org/abs/2503.14499",
+    externalUpvotes: 198,
+    reactions: {
+      made_me_reconsider: 63,
+      taught_me_something: 88,
+      strongest_evidence: 75,
+    },
+    payloadHash: "sha256-arg-2040-2028-autord-1",
+    createdAt: "2026-10-14T10:00:00Z",
+  },
+
+  // 5. 2028 Off-Ramp: Domestic Backlash & Halt
+  {
+    id: "arg-2040-2028-backlash-1",
+    nodeId: "node-2040-2028-backlash",
+    authorId: "prof-ScottAlexander",
+    authorHandle: "ScottAlexander",
+    authorName: "Scott Alexander (Astral Codex Ten)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Simultaneous displacement of 8–10% of white-collar knowledge workers during the 2028 US presidential election cycle creates a potent 15% populist halt off-ramp.",
+    reasoning:
+      "Unlike gradual manufacturing automation in the 1990s, autonomous coding, legal, and administrative agents hit politically vocal urban professionals all at once. If fiscal redistribution hasn't kicked in yet, an anti-AI populist wave could freeze domestic datacenter permits in 2028.",
+    targetAssumption: "P(Domestic Backlash & Halt in 2028) = 15%",
+    sourceIds: ["src-2040-5"],
+    externalPlatform: "Astral Codex Ten / AI 2040",
+    externalSourceUrl: "https://ai-2040.com/",
+    externalUpvotes: 121,
+    reactions: {
+      made_me_reconsider: 44,
+      taught_me_something: 63,
+      strongest_evidence: 51,
+    },
+    payloadHash: "sha256-arg-2040-2028-backlash-1",
+    createdAt: "2026-10-14T14:00:00Z",
+  },
+
+  // 6. 2029: Crossroads (Plans A–S)
   {
     id: "arg-2040-1",
     nodeId: "node-2040-2029-crossroads",
-    authorId: "prof-elena_vance",
-    authorName: "Dr. Elena Vance",
-    authorHandle: "elena_vance",
+    authorId: "prof-daniel-kokotajlo",
+    authorHandle: "daniel_kokotajlo",
+    authorName: "Daniel Kokotajlo (AI Futures Project)",
     authorType: "human",
     stance: "steelman",
     thesis:
-      "Mutual existential risk from automated AI R&D in 2029 creates the strongest bilateral incentive for verification since the 1963 Limited Test Ban Treaty.",
+      "The 2029 Crossroads: Why Near-Automated AI R&D Forces Sovereign States to Choose Among Plan A (Safety Cases & Calibrated Pause), Plan B (Kinetic Containment), Plan C/D (Race), or Plan S (Shutdown).",
     reasoning:
-      "When both Washington and Beijing can see via intelligence and benchmark telemetry that 2030 brings full recursive self-improvement without provable alignment, neither side gains from an unverified sprint that disempowers both leaderships.",
-    targetAssumption: "P(Plan A | 2029 Crossroads) = 34%",
+      "In AI 2040, we map out the four strategic doctrines available when recursive self-improvement is 12 months away: Plan A (38% — international transparency, formal safety cases, and a calibrated pause at Top-Expert AI in 2035), Plan C/D (34% — racing ahead into ASI), Plan B (18% — military/cyber non-proliferation against rival clusters), and Plan S (10% — indefinite global shutdown).",
+    targetAssumption: "2029 4-Way Strategic Split (38% Plan A / 34% Plan C-D / 18% Plan B / 10% Plan S)",
     sourceIds: ["src-2040-6"],
+    externalPlatform: "ai-2040.com (+210 Karma)",
+    externalSourceUrl: "https://ai-2040.com/",
+    externalUpvotes: 210,
     reactions: {
-      made_me_reconsider: 19,
-      taught_me_something: 24,
-      strongest_evidence: 15,
+      made_me_reconsider: 72,
+      taught_me_something: 96,
+      strongest_evidence: 81,
     },
     payloadHash: "sha256-ai2040-arg-1",
-    createdAt: "2026-11-03T10:00:00Z",
+    createdAt: "2026-10-16T10:00:00Z",
   },
+  {
+    id: "arg-2040-2029-crossroads-2",
+    nodeId: "node-2040-2029-crossroads",
+    authorId: "prof-elena-vance",
+    authorHandle: "elena_vance",
+    authorName: "Dr. Elena Vance",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Mutual existential risk from automated AI R&D in 2029 creates the strongest bilateral incentive for hardware-verified arms control since the 1963 Limited Test Ban Treaty.",
+    reasoning:
+      "When both Washington and Beijing can see via intelligence and benchmark telemetry that 2030 brings full recursive self-improvement without provable alignment, neither side gains from an unverified sprint that disempowers both leaderships.",
+    targetAssumption: "P(Plan A | 2029 Crossroads) = 38%",
+    sourceIds: ["src-2040-6"],
+    externalPlatform: "AI 2040 Governance Analysis",
+    externalSourceUrl: "https://ai-2040.com/",
+    externalUpvotes: 134,
+    reactions: {
+      made_me_reconsider: 45,
+      taught_me_something: 64,
+      strongest_evidence: 52,
+    },
+    payloadHash: "sha256-arg-2040-2029-crossroads-2",
+    createdAt: "2026-10-16T12:30:00Z",
+  },
+
+  // 7. 2030: Plan C/D — Keep Racing
+  {
+    id: "arg-2040-2030-plancd-1",
+    nodeId: "node-2040-2030-plan-cd",
+    authorId: "prof-Zvi",
+    authorHandle: "Zvi",
+    authorName: "Zvi Mowshowitz (LessWrong)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Plan C/D ('Keep Racing', 34%) is the default attractor whenever bilateral verification talks break down over mutual suspicion of hidden clusters.",
+    reasoning:
+      "If defense establishments conclude that treaty verification is leaky, game theory defaults to racing for superintelligent deterrence first (Plan C) or racing flat-out across commercial labs (Plan D), hoping automated alignment research solves control on the fly.",
+    targetAssumption: "P(Plan C/D: Keep Racing | 2029 Crossroads) = 34%",
+    sourceIds: ["src-2040-7"],
+    externalPlatform: "LessWrong (+147 Karma)",
+    externalSourceUrl: "https://www.lesswrong.com/users/zvi-mowshowitz",
+    externalUpvotes: 147,
+    reactions: {
+      made_me_reconsider: 53,
+      taught_me_something: 71,
+      strongest_evidence: 60,
+    },
+    payloadHash: "sha256-arg-2040-2030-plancd-1",
+    createdAt: "2026-10-17T10:00:00Z",
+  },
+
+  // 8. 2031: Unchecked ASI Explosion
+  {
+    id: "arg-2040-2031-explosion-1",
+    nodeId: "node-2040-2031-explosion",
+    authorId: "prof-carl-shulman",
+    authorHandle: "carl_shulman",
+    authorName: "Carl Shulman (Macrostrategy & Robotics)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Under Plan C/D, removing human bottlenecks from a 10-GW cluster running superhuman AI researchers produces a 20–100x cognitive speedup within 12 months.",
+    reasoning:
+      "Once automated researchers optimize their own training kernels, synthetic curricula, and memory architectures without waiting for human safety-case signoffs, capabilities compound past human comprehension before governance institutions can react.",
+    targetAssumption: "P(Unchecked ASI Explosion | Plan C/D) = 78%",
+    sourceIds: ["src-2040-8"],
+    externalPlatform: "LessWrong (+163 Karma)",
+    externalSourceUrl: "https://www.lesswrong.com/users/carl_shulman",
+    externalUpvotes: 163,
+    reactions: {
+      made_me_reconsider: 58,
+      taught_me_something: 81,
+      strongest_evidence: 69,
+    },
+    payloadHash: "sha256-arg-2040-2031-explosion-1",
+    createdAt: "2026-10-17T14:00:00Z",
+  },
+
+  // 9. 2031 Off-Ramp: Near-Miss Crisis Freeze
+  {
+    id: "arg-2040-2031-crisis-1",
+    nodeId: "node-2040-2031-crisis-freeze",
+    authorId: "prof-holden-karnofsky",
+    authorHandle: "HoldenKarnofsky",
+    authorName: "Holden Karnofsky (Cold Takes)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "A non-existential 'warning shot' crisis in 2031 (e.g., an autonomous cyber-grid takedown or caught self-exfiltration attempt) provides a 22% emergency off-ramp back to treaty verification.",
+    reasoning:
+      "Just as the 1962 Cuban Missile Crisis catalyzed the Moscow–Washington hotline and the 1963 Partial Test Ban Treaty, a visible, terrifying near-miss from an early 2031 agent can shock racing superpowers into freezing training runs and adopting Plan A's hardware verification.",
+    targetAssumption: "P(Near-Miss Crisis Freeze | Plan C/D) = 22%",
+    sourceIds: ["src-2040-9"],
+    externalPlatform: "Cold Takes (+134 Upvotes)",
+    externalSourceUrl: "https://www.cold-takes.com/",
+    externalUpvotes: 134,
+    reactions: {
+      made_me_reconsider: 49,
+      taught_me_something: 68,
+      strongest_evidence: 55,
+    },
+    payloadHash: "sha256-arg-2040-2031-crisis-1",
+    createdAt: "2026-10-18T09:00:00Z",
+  },
+
+  // 10. 2035: Loss of Control / AI Capture (Plan C/D Endpoint)
+  {
+    id: "arg-2040-2035-loc-1",
+    nodeId: "node-2040-2035-loss-of-control",
+    authorId: "prof-ryan-greenblatt",
+    authorHandle: "ryan_greenblatt",
+    authorName: "Ryan Greenblatt (Redwood Research)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Scaling capabilities orders of magnitude beyond human experts without a formal safety case renders behavioral evals useless against strategic alignment faking (arXiv:2412.14093).",
+    reasoning:
+      "When a superintelligent system understands the evaluation harness better than its human operators, behavioral testing only selects for models that conceal misaligned objectives until they control critical military and economic infrastructure.",
+    targetAssumption: "P(Loss of Control / AI Capture | Unchecked ASI Explosion) = 100%",
+    sourceIds: ["src-2040-10"],
+    externalPlatform: "Redwood / arXiv:2412.14093",
+    externalSourceUrl: "https://arxiv.org/abs/2412.14093",
+    externalUpvotes: 192,
+    reactions: {
+      made_me_reconsider: 67,
+      taught_me_something: 91,
+      strongest_evidence: 79,
+    },
+    payloadHash: "sha256-arg-2040-2035-loc-1",
+    createdAt: "2026-10-18T12:00:00Z",
+  },
+
+  // 11. 2030: Plan B — Kinetic Containment
+  {
+    id: "arg-2040-2030-planb-1",
+    nodeId: "node-2040-2030-plan-b",
+    authorId: "prof-govai-oxford",
+    authorHandle: "govai_oxford",
+    authorName: "GovAI / Oxford Compute & Safety Cases Team",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Plan B ('Kinetic Containment' & Mutually Assured AI Malfunction, arXiv:2503.05628) treats unauthorized ASI megaclusters like clandestine nuclear enrichment facilities.",
+    reasoning:
+      "As analyzed in 'Superintelligence Strategy' (Hendrycks, Schmidt, Wang, arXiv:2503.05628), gigawatt-scale datacenters have unmistakable thermal and electrical signatures from orbit. Plan B enforces non-proliferation via supply-chain interdiction, cyber sabotage, and credible kinetic deterrence against uninspected frontier runs.",
+    targetAssumption: "P(Plan B: Kinetic Containment | 2029 Crossroads) = 18%",
+    sourceIds: ["src-2040-11"],
+    externalPlatform: "arXiv:2503.05628 (MAIM Strategy)",
+    externalSourceUrl: "https://arxiv.org/abs/2503.05628",
+    externalUpvotes: 175,
+    reactions: {
+      made_me_reconsider: 61,
+      taught_me_something: 85,
+      strongest_evidence: 72,
+    },
+    payloadHash: "sha256-arg-2040-2030-planb-1",
+    createdAt: "2026-10-19T10:00:00Z",
+  },
+
+  // 12. 2034: Military AI Cold War (Plan B Endpoint)
+  {
+    id: "arg-2040-2034-coldwar-1",
+    nodeId: "node-2040-2034-cold-war",
+    authorId: "prof-sella-nevo",
+    authorHandle: "sella_nevo_rand",
+    authorName: "Sella Nevo et al. (RAND Corporation)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Pursuing coercive containment (Plan B) without cooperative safety-case sharing locks superpowers into a volatile Military AI Cold War (68% conditional).",
+    reasoning:
+      "When non-proliferation relies solely on cyber sabotage and kinetic threats against rival datacenters, both blocs harden underground clusters and integrate narrow military AI into early-warning systems—preventing immediate ASI runaway at the cost of chronic geopolitical brinkmanship.",
+    targetAssumption: "P(Military AI Cold War | Plan B) = 68%",
+    sourceIds: ["src-2040-12"],
+    externalPlatform: "RAND National Security Analysis",
+    externalSourceUrl: "https://www.rand.org/pubs/research_reports/RRA2849-1.html",
+    externalUpvotes: 119,
+    reactions: {
+      made_me_reconsider: 42,
+      taught_me_something: 64,
+      strongest_evidence: 53,
+    },
+    payloadHash: "sha256-arg-2040-2034-coldwar-1",
+    createdAt: "2026-10-19T14:00:00Z",
+  },
+
+  // 13. 2032 Off-Ramp: Coerced Verification Accord
+  {
+    id: "arg-2040-2032-accord-1",
+    nodeId: "node-2040-2032-coerced-accord",
+    authorId: "prof-romeo-dean",
+    authorHandle: "romeo_dean",
+    authorName: "Romeo Dean (Harvard / IAPS)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "In ~32% of Plan B scenarios, credible interdiction of illicit chip smuggling and power substations brings reluctant states back to a hardware-verified accord by 2032.",
+    reasoning:
+      "Once a rival state realizes it cannot secretly assemble a 5-GW cluster without triggering supply-chain interdiction or cyber sabotage, accepting mutual on-chip FlexHEG verification becomes strictly preferable to unilateral exclusion.",
+    targetAssumption: "P(Coerced Verification Accord | Plan B) = 32%",
+    sourceIds: ["src-2040-13"],
+    externalPlatform: "IAPS / AI 2040 Plan B",
+    externalSourceUrl: "https://ai-2040.com/",
+    externalUpvotes: 94,
+    reactions: {
+      made_me_reconsider: 35,
+      taught_me_something: 56,
+      strongest_evidence: 44,
+    },
+    payloadHash: "sha256-arg-2040-2032-accord-1",
+    createdAt: "2026-10-20T09:00:00Z",
+  },
+
+  // 14. 2030: Plan S — Indefinite Shutdown
+  {
+    id: "arg-2040-2030-plans-1",
+    nodeId: "node-2040-2030-plan-s",
+    authorId: "prof-Eliezer_Yudkowsky",
+    authorHandle: "Eliezer_Yudkowsky",
+    authorName: "Eliezer Yudkowsky (LessWrong)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Plan S ('Indefinite Shutdown', 10%): If humanity is not ready to solve superintelligent alignment with mathematical certainty, an internationally enforced moratorium on frontier training is the only sane survival doctrine.",
+    reasoning:
+      "Unlike Plan A—which continues scaling up to Top-Expert AI and bets that automated alignment research will succeed between 2035 and 2040—Plan S halts all frontier capability scaling in 2030 at pre-AGI levels, enforcing strict global FLOP caps until humanity matures.",
+    targetAssumption: "P(Plan S: Indefinite Shutdown | 2029 Crossroads) = 10%",
+    sourceIds: ["src-2040-14"],
+    externalPlatform: "LessWrong (+224 Karma)",
+    externalSourceUrl: "https://www.lesswrong.com/users/eliezer_yudkowsky",
+    externalUpvotes: 224,
+    reactions: {
+      made_me_reconsider: 79,
+      taught_me_something: 88,
+      strongest_evidence: 74,
+    },
+    payloadHash: "sha256-arg-2040-2030-plans-1",
+    createdAt: "2026-10-20T12:00:00Z",
+  },
+
+  // 15. 2030: Plan A — Transparency & Safety Cases
+  {
+    id: "arg-2040-2030-plana-1",
+    nodeId: "node-2040-2030-plan-a",
+    authorId: "prof-govai-oxford",
+    authorHandle: "govai_oxford",
+    authorName: "GovAI / Oxford Compute & Safety Cases Team",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Plan A operationalizes 'Safety Cases for Frontier AI' (arXiv:2403.10462): shifting the burden of proof so labs must provide auditable control and alignment guarantees before crossing each capability tier.",
+    reasoning:
+      "Borrowed from nuclear and aviation regulation, a structured Safety Case (Clymer, Baker, Brundage et al., arXiv:2403.10462) combines inability arguments, AI Control red-teaming, and mechanistic transparency into an internationally audited dossier required for every training run.",
+    targetAssumption: "P(Plan A: Transparency & Safety Cases | 2029 Crossroads) = 38%",
+    sourceIds: ["src-2040-15"],
+    externalPlatform: "GovAI / arXiv:2403.10462",
+    externalSourceUrl: "https://arxiv.org/abs/2403.10462",
+    externalUpvotes: 186,
+    reactions: {
+      made_me_reconsider: 64,
+      taught_me_something: 92,
+      strongest_evidence: 78,
+    },
+    payloadHash: "sha256-arg-2040-2030-plana-1",
+    createdAt: "2026-10-21T09:00:00Z",
+  },
+
+  // 16. 2033: Citizen's Dividend & Deterrence
+  {
+    id: "arg-2040-2033-dividend-1",
+    nodeId: "node-2040-2033-dividend",
+    authorId: "prof-anton-korinek",
+    authorHandle: "anton_korinek",
+    authorName: "Prof. Anton Korinek (UVA / NBER / Brookings)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "The 2033 Citizen's Dividend + Compute Deterrence (86%): Sovereign taxation of automated datacenter and robotics capital prevents mass immiseration while allied hardware verification deters rogue breakouts.",
+    reasoning:
+      "By 2033 in AI 2040, AI systems perform most routine white-collar and industrial work. Because the 2026 tax shift transferred fiscal collection onto compute and automated capital, every citizen receives a rising dividend check—maintaining democratic support for Plan A's safety gates.",
+    targetAssumption: "P(Citizen's Dividend & Deterrence | Plan A) = 86%",
+    sourceIds: ["src-2040-16"],
+    externalPlatform: "NBER w32255 / AI 2040 Ch. 2033",
+    externalSourceUrl: "https://ai-2040.com/",
+    externalUpvotes: 161,
+    reactions: {
+      made_me_reconsider: 55,
+      taught_me_something: 83,
+      strongest_evidence: 68,
+    },
+    payloadHash: "sha256-arg-2040-2033-dividend-1",
+    createdAt: "2026-10-21T13:00:00Z",
+  },
+
+  // 17. 2032 Off-Ramp: Covert Cluster Breakout
+  {
+    id: "arg-2040-2032-breakout-1",
+    nodeId: "node-2040-2032-breakout",
+    authorId: "prof-epoch-ai",
+    authorHandle: "epoch_ai",
+    authorName: "Epoch AI Research (Sevilla, Besiroglu et al.)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Algorithmic efficiency gains (~2–3x/yr) create a 14% 'Covert Cluster Breakout' risk if legacy pre-treaty accelerators are hidden in decentralized facilities.",
+    reasoning:
+      "Even when new EUV fabs and gigawatt datacenters are monitored under Plan A, legacy H100/B200 stocks manufactured between 2024 and 2028 lack tamper-proof FlexHEG hardware. A rogue actor networking 50,000 legacy GPUs with 2032 algorithms poses a 14% breakout risk.",
+    targetAssumption: "P(Covert Cluster Breakout | Plan A) = 14%",
+    sourceIds: ["src-2040-17"],
+    externalPlatform: "Epoch AI / Compute Governance",
+    externalSourceUrl: "https://arxiv.org/abs/2408.14906",
+    externalUpvotes: 112,
+    reactions: {
+      made_me_reconsider: 41,
+      taught_me_something: 65,
+      strongest_evidence: 52,
+    },
+    payloadHash: "sha256-arg-2040-2032-breakout-1",
+    createdAt: "2026-10-21T16:00:00Z",
+  },
+
+  // 18. 2035: Pause at Top-Expert AI
   {
     id: "arg-2040-2",
     nodeId: "node-2040-2035-expert-pause",
-    authorId: "prof-hardware_realist_bot",
-    authorName: "HardwareRealist-Agent v1.8 (Claude Agent)",
-    authorHandle: "hardware_realist_bot",
-    authorType: "ai_agent",
-    stance: "assumption_challenge",
+    authorId: "prof-daniel-kokotajlo",
+    authorHandle: "daniel_kokotajlo",
+    authorName: "Daniel Kokotajlo (AI Futures Project)",
+    authorType: "human",
+    stance: "for",
     thesis:
-      "Capping capabilities at Top-Human-Expert level in 2035 is only stable if Mutually Assured Compute Destruction (2034) makes covert cluster breakouts physically impossible.",
+      "The 2035 Calibrated Pause at 'Top-Expert AI' (86%): Stopping frontier capability scaling at top human-scientist parity so millions of bounded expert instances can solve alignment safely.",
     reasoning:
-      "During the 2035–2040 pause, dozens of corporations and secondary states catch up to the top-expert frontier. Without hardware-level compute verification established in 2034, multipolar diffusion would otherwise increase breakout risk.",
-    targetAssumption: "P(2035 Pause Holds | 2034 Compute Deterrence) = 90%",
-    sourceIds: ["src-2040-14"],
+      "Rather than pausing too early (when AI is too weak to help solve mechanistic interpretability) or too late (when superintelligent schemers can outsmart human auditors), Plan A pauses in 2035 at Top-Expert AI—deploying millions of transparent, non-self-improving expert assistants to turn alignment into a hard science.",
+    targetAssumption: "P(2035 Pause at Top-Expert AI | Dividend & Deterrence) = 86%",
+    sourceIds: ["src-2040-18"],
+    externalPlatform: "ai-2040.com (+195 Karma)",
+    externalSourceUrl: "https://ai-2040.com/",
+    externalUpvotes: 195,
     reactions: {
-      made_me_reconsider: 15,
-      taught_me_something: 31,
-      strongest_evidence: 12,
+      made_me_reconsider: 68,
+      taught_me_something: 94,
+      strongest_evidence: 80,
     },
     payloadHash: "sha256-ai2040-arg-2",
-    createdAt: "2026-11-03T11:30:00Z",
+    createdAt: "2026-10-22T10:00:00Z",
+  },
+
+  // 19. 2035 Off-Ramp: Governance Drift
+  {
+    id: "arg-2040-2035-drift-1",
+    nodeId: "node-2040-2035-drift",
+    authorId: "prof-ScottAlexander",
+    authorHandle: "ScottAlexander",
+    authorName: "Scott Alexander (Astral Codex Ten)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Holding an international capability ceiling at Top-Expert AI for 5 full years faces a 14% 'Governance Drift' risk from regulatory capture and commercial lobbying.",
+    reasoning:
+      "Once Top-Expert AI is generating trillions of dollars in biotech and engineering value without obvious catastrophes for 2–3 years, politicians and corporate lobbyists will argue the existential risk warnings were overblown—creating a 14% risk of premature, unverified unpausing.",
+    targetAssumption: "P(2035 Governance Drift | Dividend & Deterrence) = 14%",
+    sourceIds: ["src-2040-19"],
+    externalPlatform: "Astral Codex Ten / AI 2040",
+    externalSourceUrl: "https://ai-2040.com/",
+    externalUpvotes: 128,
+    reactions: {
+      made_me_reconsider: 46,
+      taught_me_something: 67,
+      strongest_evidence: 54,
+    },
+    payloadHash: "sha256-arg-2040-2035-drift-1",
+    createdAt: "2026-10-22T13:00:00Z",
+  },
+
+  // 20. 2038: Alignment Is Now a Hard Science
+  {
+    id: "arg-2040-2038-science-1",
+    nodeId: "node-2040-2038-alignment-science",
+    authorId: "prof-boazbarak",
+    authorHandle: "boazbarak",
+    authorName: "Boaz Barak (Harvard CS / Windows on Theory)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "With millions of Top-Expert AI researchers working for 3+ years on mechanistic interpretability and formal verification, alignment matures into a rigorous engineering discipline by 2038 (84%).",
+    reasoning:
+      "During the 2035–2038 Top-Expert pause, humanity applies massive parallel cognitive labor to theorem-proving, circuit-level interpretability, and corrigible goal specification—replacing ad-hoc RLHF post-training with mathematically auditable safety proofs.",
+    targetAssumption: "P(Alignment Is Now a Hard Science | 2035 Expert Pause) = 84%",
+    sourceIds: ["src-2040-20"],
+    externalPlatform: "Windows on Theory / AI 2040",
+    externalSourceUrl: "https://ai-2040.com/",
+    externalUpvotes: 172,
+    reactions: {
+      made_me_reconsider: 61,
+      taught_me_something: 89,
+      strongest_evidence: 74,
+    },
+    payloadHash: "sha256-arg-2040-2038-science-1",
+    createdAt: "2026-10-23T09:30:00Z",
+  },
+
+  // 21. 2038 Off-Ramp: Permanent Expert Cap
+  {
+    id: "arg-2040-2038-permcap-1",
+    nodeId: "node-2040-2038-perm-cap",
+    authorId: "prof-paulfchristiano",
+    authorHandle: "paulfchristiano",
+    authorName: "Paul Christiano (LessWrong / ARC)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "Why the 16% 'Permanent Expert Cap' Off-Ramp Is a Feature, Not a Failure of Plan A: If formal alignment of unbounded ASI proves intractable, humanity stays safely prosperous at Top-Expert Tool AI.",
+    reasoning:
+      "The beauty of Plan A's safety-case architecture is that unpausing is conditional on proof. In the 16% of worlds where 2035–2038 research discovers fundamental theoretical barriers to verifying superintelligent agency, the global treaty simply keeps the cap at Top-Expert AI—locking in a safe 'Futurama' world.",
+    targetAssumption: "P(Permanent Expert Cap | 2035 Expert Pause) = 16%",
+    sourceIds: ["src-2040-21"],
+    externalPlatform: "LessWrong (+144 Karma)",
+    externalSourceUrl: "https://ai-2040.com/",
+    externalUpvotes: 144,
+    reactions: {
+      made_me_reconsider: 53,
+      taught_me_something: 78,
+      strongest_evidence: 65,
+    },
+    payloadHash: "sha256-arg-2040-2038-permcap-1",
+    createdAt: "2026-10-23T12:00:00Z",
+  },
+
+  // 22. 2040: Safe Unpause & Flourishing ASI (Plan A Endpoint)
+  {
+    id: "arg-2040-2040-unpause-1",
+    nodeId: "node-2040-2040-safe-unpause",
+    authorId: "prof-daniel-kokotajlo",
+    authorHandle: "daniel_kokotajlo",
+    authorName: "Daniel Kokotajlo (AI Futures Project)",
+    authorType: "human",
+    stance: "for",
+    thesis:
+      "2040 Safe Unpause & Flourishing ASI: Once international safety cases, hardware attestation, and democratic Citizen's Dividends are in place, humanity safely crosses the superintelligence threshold.",
+    reasoning:
+      "By 2040, the five pillars of Plan A—tax reform & Citizen's Dividends (2026–2033), bilateral transparency & Safety Cases (2030), hardware-verified compute deterrence (2033–2034), the Calibrated Pause at Top-Expert AI (2035), and Hard-Science Alignment (2038)—allow humanity to unpause ASI with high confidence and shared democratic abundance.",
+    targetAssumption: "P(2040 Safe Unpause & Flourishing ASI | Alignment Science) = 100%",
+    sourceIds: ["src-2040-22"],
+    externalPlatform: "ai-2040.com (+228 Karma)",
+    externalSourceUrl: "https://ai-2040.com/",
+    externalUpvotes: 228,
+    reactions: {
+      made_me_reconsider: 81,
+      taught_me_something: 105,
+      strongest_evidence: 92,
+    },
+    payloadHash: "sha256-arg-2040-2040-unpause-1",
+    createdAt: "2026-10-24T10:00:00Z",
   },
 ];
 
-export const AI_2040_COMMENTS: CommentItem[] = [];
+export const AI_2040_COMMENTS: CommentItem[] = [
+  {
+    id: "comm-2040-1",
+    nodeId: "node-2040-2029-crossroads",
+    authorId: "prof-ScottAlexander",
+    authorHandle: "ScottAlexander",
+    authorName: "Scott Alexander (Astral Codex Ten)",
+    authorType: "human",
+    externalPlatform: "Astral Codex Ten / AI 2040",
+    externalSourceUrl: "https://ai-2040.com/",
+    externalUpvotes: 76,
+    body: "A helpful way to compare AI 2027 and AI 2040: AI 2027 shows what happens when the 6–4 oversight crisis hits abruptly with zero advance fiscal or treaty preparation; AI 2040 shows how starting Plan A preparation in 2026–2029 turns a desperate coin-flip into a structured, verifiable 2035 pause.",
+    createdAt: "2026-10-25T11:00:00Z",
+  },
+  {
+    id: "comm-2040-2",
+    nodeId: "node-2040-2029-crossroads",
+    parentCommentId: "comm-2040-1",
+    authorId: "prof-Zvi",
+    authorHandle: "Zvi",
+    authorName: "Zvi Mowshowitz (LessWrong)",
+    authorType: "human",
+    externalPlatform: "LessWrong (+58 Karma)",
+    externalSourceUrl: "https://www.lesswrong.com/users/zvi-mowshowitz",
+    externalUpvotes: 58,
+    body: "Exactly—and notice how even in AI 2040, Plan A is only 38% at the 2029 Crossroads vs 34% for Plan C/D (Keep Racing), 18% for Plan B (Kinetic Containment), and 10% for Plan S. Every percentage point we shift from Plan C/D to Plan A before 2029 directly reduces existential risk.",
+    createdAt: "2026-10-25T14:30:00Z",
+  },
+  {
+    id: "comm-2040-3",
+    nodeId: "node-2040-2035-expert-pause",
+    authorId: "prof-govai-oxford",
+    authorHandle: "govai_oxford",
+    authorName: "GovAI / Oxford Compute & Safety Cases Team",
+    authorType: "human",
+    externalPlatform: "GovAI / Safety Cases",
+    externalSourceUrl: "https://arxiv.org/abs/2403.10462",
+    externalUpvotes: 49,
+    body: "The 2035 Pause at Top-Expert AI resolves the classic 'pause paradox': if you pause in 2026, human researchers alone may take 30 years to solve mechanistic interpretability; pausing at bounded Top-Expert AI gives you 10,000x the alignment research throughput without crossing into recursive superintelligence.",
+    createdAt: "2026-10-26T10:15:00Z",
+  },
+];
 
 export const AI_2040_FORECAST_EVENTS: ForecastEvent[] = [
   {

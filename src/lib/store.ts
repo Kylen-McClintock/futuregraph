@@ -19,6 +19,7 @@ import {
 import { getInitialDataset, LENS_PRIORS_BY_NODE } from "@/data/ai2027-seed";
 import {
   AI_2040_ARGUMENTS,
+  AI_2040_COMMENTS,
   AI_2040_EDGES,
   AI_2040_FORECAST_EVENTS,
   AI_2040_LENS_PRIORS_BY_NODE,
@@ -47,8 +48,8 @@ declare global {
 export function getStore(): ScenarioDataset {
   const needsInit =
     !global.__FUTUREGRAPH_STORE__ ||
-    !global.__FUTUREGRAPH_STORE__.nodes.some(
-      (n) => n.id === "node-2050-q1-will-ai-fizzle"
+    !global.__FUTUREGRAPH_STORE__.arguments.some(
+      (a) => a.id === "arg-2040-2040-unpause-1"
     );
 
   if (needsInit) {
@@ -72,7 +73,7 @@ export function getStore(): ScenarioDataset {
         ...AI_2040_ARGUMENTS,
         ...AI_2050_ARGUMENTS,
       ],
-      comments: [...base.comments, ...AI_2050_COMMENTS],
+      comments: [...base.comments, ...AI_2040_COMMENTS, ...AI_2050_COMMENTS],
       forecastEvents: [
         ...base.forecastEvents,
         ...AI_2040_FORECAST_EVENTS,

@@ -597,5 +597,32 @@ describe("FutureGraph AI 2027 Canonical Dataset & Store Integration Tests", () =
       }
     }
   });
+
+  it("Test: Every node in AI 2027 (29 nodes) and AI 2040 (22 nodes) has well-sourced academic/forum arguments with external citations and upvotes", async () => {
+    const { SEED_NODES, SEED_ARGUMENTS } = await import("@/data/ai2027-seed");
+    const { AI_2040_NODES, AI_2040_ARGUMENTS } = await import("@/data/ai2040-seed");
+
+    expect(SEED_NODES).toHaveLength(29);
+    for (const node of SEED_NODES) {
+      const nodeArgs = SEED_ARGUMENTS.filter((a) => a.nodeId === node.id);
+      expect(nodeArgs.length).toBeGreaterThanOrEqual(1);
+      for (const arg of nodeArgs) {
+        expect(arg.externalPlatform).toBeTruthy();
+        expect(arg.externalSourceUrl).toMatch(/^https?:\/\//);
+        expect(arg.externalUpvotes).toBeGreaterThan(0);
+      }
+    }
+
+    expect(AI_2040_NODES).toHaveLength(22);
+    for (const node of AI_2040_NODES) {
+      const nodeArgs = AI_2040_ARGUMENTS.filter((a) => a.nodeId === node.id);
+      expect(nodeArgs.length).toBeGreaterThanOrEqual(1);
+      for (const arg of nodeArgs) {
+        expect(arg.externalPlatform).toBeTruthy();
+        expect(arg.externalSourceUrl).toMatch(/^https?:\/\//);
+        expect(arg.externalUpvotes).toBeGreaterThan(0);
+      }
+    }
+  });
 });
 
