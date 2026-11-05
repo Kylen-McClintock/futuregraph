@@ -359,16 +359,73 @@ input[type="range"].fg-slider::-moz-range-thumb {
 .fg-river-flow-pulse {
   stroke-dasharray: 8 28;
   animation: fgRiverFlow 1.6s linear infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 }
 
-/* Modern Web Guidance: motion */
+/* Modern Web Guidance: directional-navigation-transitions & same-document-transitions */
+@keyframes slide-to-left {
+  to {
+    transform: translateX(-6%);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-from-right {
+  from {
+    transform: translateX(6%);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-to-right {
+  to {
+    transform: translateX(6%);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-from-left {
+  from {
+    transform: translateX(-6%);
+    opacity: 0;
+  }
+}
+
+.fg-present-slide-stage {
+  view-transition-name: present-stage;
+}
+
+.fg-present-slide-title {
+  width: fit-content;
+}
+
+::view-transition-group(present-stage) {
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html:active-view-transition-type(forward)::view-transition-old(present-stage) {
+  animation-name: slide-to-left;
+}
+
+html:active-view-transition-type(forward)::view-transition-new(present-stage) {
+  animation-name: slide-from-right;
+}
+
+html:active-view-transition-type(backward)::view-transition-old(present-stage) {
+  animation-name: slide-to-right;
+}
+
+html:active-view-transition-type(backward)::view-transition-new(present-stage) {
+  animation-name: slide-from-left;
+}
+
+/* Modern Web Guidance: motion & same-document-transitions reduced-motion handling */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }

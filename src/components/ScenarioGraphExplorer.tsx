@@ -14,6 +14,7 @@ import {
   Maximize2,
   Minus,
   Network,
+  Play,
   Plus,
   RotateCcw,
   Sliders,
@@ -44,6 +45,7 @@ import {
 } from "@/data/ai2050-seed";
 import { resolveRiverLabelPlacements } from "@/lib/river-layout";
 import { NatureOfRealitySankey } from "@/components/NatureOfRealitySankey";
+import { BranchingTreePresenter } from "@/components/BranchingTreePresenter";
 
 /**
  * Definition of a node in the continuous Branching Probability River.
@@ -478,6 +480,7 @@ export function ScenarioGraphExplorer({
     Record<string, number>
   >({});
   const [outcomesPanelOpen, setOutcomesPanelOpen] = useState(true);
+  const [isPresentingTree, setIsPresentingTree] = useState(false);
 
   const activeRiverSpecs = useMemo(() => {
     if (activeScenarioSlug === "ai-2050") {
@@ -2021,9 +2024,39 @@ export function ScenarioGraphExplorer({
                 <span>Table</span>
               </button>
             </div>
+
+            {/* Launch Branching Present Studio */}
+            <button
+              type="button"
+              onClick={() => setIsPresentingTree(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/60 bg-gradient-to-r from-amber-500/20 to-sky-500/20 px-2.5 py-1 text-xs font-extrabold text-amber-200 hover:border-amber-300 hover:text-white shadow-sm transition-all"
+            >
+              <Play className="h-3.5 w-3.5 text-amber-400" />
+              <span>Present Tree</span>
+            </button>
           </div>
         </div>
       </div>
+
+      {isPresentingTree && (
+        <BranchingTreePresenter
+          embedded
+          initialTreeKey={
+            activeScenarioSlug === "ai-2050"
+              ? ai2050DepthMode === "comprehensive"
+                ? "ai-2050-comprehensive"
+                : "ai-2050-simple"
+              : activeScenarioSlug === "ai-2040"
+              ? "ai-2040"
+              : "ai-2027"
+          }
+          initialRiverNodeId={
+            selectedRiverNodeForDrawer?.id ?? selectedNodeId ?? null
+          }
+          initialConditionalOverrides={conditionalOverrides}
+          onCloseEmbedded={() => setIsPresentingTree(false)}
+        />
+      )}
 
       {/* Main Split Area */}
       <div
