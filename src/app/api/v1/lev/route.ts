@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     {
       status: "ok",
       computation,
+      kpiVelocityEngine: computation.kpiVelocityEngine,
       predictionMarkets: LEV_PREDICTION_MARKETS,
       expertPredictions: LEV_EXPERT_PREDICTIONS,
       cohortProfiles: COHORT_PACE_PROFILES,

@@ -450,6 +450,361 @@ export const LEV_EXPERT_PREDICTIONS: LevExpertPrediction[] = [
   },
 ];
 
+export interface LevKpiVelocityUpdate {
+  id: string;
+  annualVelocityPct?: number;
+  displayValue?: string;
+  trendMagnitude?: string;
+  lastUpdated?: string;
+}
+
+export interface LevKpiVelocityMetric {
+  id: string;
+  name: string;
+  shortLabel: string;
+  currentValue: number | string;
+  unit: string;
+  displayValue: string;
+  trendDirection: "up" | "down" | "flat";
+  trendMagnitude: string;
+  confidenceClass: "Measured" | "Estimated" | "Modeled" | "Reported" | "Calculated";
+  sourceQuality: string;
+  sourceName: string;
+  sourceUrl: string;
+  methodologyNote: string;
+  lastUpdated: string;
+  updateCadence: string;
+  whyItMatters: string;
+  annualVelocityPct: number;
+  indexWeight: number;
+  weightedContribution: number;
+}
+
+export const CANONICAL_LEV_KPI_METRICS: LevKpiVelocityMetric[] = [
+  {
+    id: "kpi-lev-readiness",
+    name: "LEV Readiness Index (Composite Bridge)",
+    shortLabel: "LEV Velocity Bridge",
+    currentValue: 26.8,
+    unit: "Index (0-100)",
+    displayValue: "26.8 / 100",
+    trendDirection: "up",
+    trendMagnitude: "+2.8 pts (Nov 2026 Pulse)",
+    confidenceClass: "Calculated",
+    sourceQuality: "Tier 1 Multi-Model Synthesis",
+    sourceName: "FutureGraph × LEVL Trajectory & AGI Futures",
+    sourceUrl: "https://www.levlhealth.com/newsletter/edition-1",
+    methodologyNote:
+      "Composite index measuring proximity to the actuarial intercept where annual biological damage accumulation (Pace of Aging ~0.66 bio-yr/yr in 99th-pct cohorts) is fully offset by clinical rejuvenation velocity (>= 1.0 yr/yr).",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Weekly (Outpace Aging Sync)",
+    whyItMatters:
+      "Tracks the macro crossover where living cohorts add more than one year of healthy remaining life expectancy per calendar year.",
+    annualVelocityPct: 28.5,
+    indexWeight: 1.0,
+    weightedContribution: 28.5,
+  },
+  {
+    id: "kpi-cellular-reprogramming",
+    name: "In Vivo Partial Cellular Reprogramming",
+    shortLabel: "Epigenetic Reset (OSK)",
+    currentValue: 2,
+    unit: "Stage (1-4)",
+    displayValue: "NHP Safety / IND Prep",
+    trendDirection: "up",
+    trendMagnitude: "Zero teratoma at 18m in NHP (OSK)",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Preclinical & IND",
+    sourceName: "Life Biosciences / Retro Bio / Altos Labs",
+    sourceUrl: "https://life-biosciences.com/",
+    methodologyNote:
+      "Tracks clinical translation of inducible Yamanaka factor (OSK) and chemical reprogramming cocktails from murine lifespan extension to non-human primate (NHP) optic nerve restoration and human Phase 1 IND filings.",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Quarterly / Milestone",
+    whyItMatters:
+      "Partial epigenetic reprogramming resets cellular methylation age without erasing somatic cell identity, forming the core 2030s rejuvenation wave.",
+    annualVelocityPct: 32.0,
+    indexWeight: 1.0,
+    weightedContribution: 32.0,
+  },
+  {
+    id: "kpi-epigenetic-clock-validation",
+    name: "Epigenetic Clock Surrogate Validation (TranslAGE)",
+    shortLabel: "Biomarker Clock Trials",
+    currentValue: 51,
+    unit: "Human Trials ($85/assay)",
+    displayValue: "51 Human RCTs • $85/assay",
+    trendDirection: "up",
+    trendMagnitude: "DunedinPACE & PCGrimAge validated across 51 trials",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Nature Medicine Benchmark",
+    sourceName: "Nature Medicine (TranslAGE) & ARPA-H PROSPR",
+    sourceUrl: "https://doi.org/10.1038/s41591-026-04562-9",
+    methodologyNote:
+      "Combines the TranslAGE standardized benchmark across 51 longitudinal human interventional studies (16 clocks, 94 DNAm biomarkers) with the annualized drop in clinical methylation assay cost.",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Weekly (Outpace Aging Sync)",
+    whyItMatters:
+      "Validated surrogate aging clocks compress human longevity clinical trial readouts from 10-year mortality studies down to 6-to-12-month biomarker windows.",
+    annualVelocityPct: 38.0,
+    indexWeight: 0.9,
+    weightedContribution: 34.2,
+  },
+  {
+    id: "kpi-senolytics-clinical",
+    name: "Senolytics & Immune Senescence Clearance",
+    shortLabel: "Senolytic Therapeutics",
+    currentValue: 2.5,
+    unit: "Phase / Platform",
+    displayValue: "Phase 2 + Nanovaccines",
+    trendDirection: "up",
+    trendMagnitude: "HR 0.28 survival gain in Gpnmb+ nanovaccine",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Clinical & Advanced Science",
+    sourceName: "Advanced Science (Oct 2026) / Unity / Rubedo",
+    sourceUrl: "https://doi.org/10.1002/advs.78545",
+    methodologyNote:
+      "Tracks Phase 2 human senolytic trials, BCL-xL PROTAC degraders, and bi-adjuvant spider-silk nanovaccines (CK5-GC-NV) that mobilize CD8+ T cells against Gpnmb+ senescent cells (extending murine median survival from 79 to 91 weeks, HR = 0.28).",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Weekly (Outpace Aging Sync)",
+    whyItMatters:
+      "Clearing senescent cells eliminates chronic inflammatory SASP signaling without continuous daily small-molecule toxicity.",
+    annualVelocityPct: 26.0,
+    indexWeight: 0.85,
+    weightedContribution: 22.1,
+  },
+  {
+    id: "kpi-nad-salvage-proteostasis",
+    name: "Proteostasis & NAD+ Salvage Enzyme Preservation",
+    shortLabel: "NAMPT / AEP Blockade",
+    currentValue: 17.0,
+    unit: "% Murine Lifespan Gain",
+    displayValue: "+17% Lifespan (AEP/NAMPT)",
+    trendDirection: "up",
+    trendMagnitude: "24m → 28m murine lifespan via #11a AEP blockade",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Peer-Reviewed (iScience)",
+    sourceName: "iScience (Oct 2026) / Calico / Buck Institute",
+    sourceUrl: "https://www.cell.com/iscience/fulltext/S2589-0042(26)03373-0",
+    methodologyNote:
+      "Measures enzymatic NAD+ salvage preservation via oral asparaginyl endopeptidase (AEP) inhibition (#11a), blocking age-driven cleavage of NAMPT at N164/N335 and extending aged mouse lifespan from 24 to 28 months (+17%).",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Weekly (Outpace Aging Sync)",
+    whyItMatters:
+      "Protecting the rate-limiting NAMPT enzyme restores endogenous NAD+ and sirtuin DNA repair far more durably than bolus precursor supplementation alone.",
+    annualVelocityPct: 22.5,
+    indexWeight: 0.8,
+    weightedContribution: 18.0,
+  },
+  {
+    id: "kpi-neuro-glial-rejuvenation",
+    name: "Glial Autophagy & Microglial Lipid Remodeling",
+    shortLabel: "Neuro-Glial Clearance",
+    currentValue: 66.0,
+    unit: "% Lipid/Cytokine Reduction",
+    displayValue: "FGF13 + PLA2G2F Rescue",
+    trendDirection: "up",
+    trendMagnitude: "-66% microglial lipid load & lower systemic IL-6",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Nature Neuroscience & Aging Cell",
+    sourceName: "Nature Neuroscience & Aging Cell (Oct 2026)",
+    sourceUrl: "https://doi.org/10.1038/s41593-026-02465-z",
+    methodologyNote:
+      "Tracks central-to-peripheral brain rejuvenation via astrocyte FGF13/Phafin2 lysosomal autophagy restoration (lowering blood IL-6/IFN-gamma) and neuronal PLA2G2F phospholipase delivery (clearing APOE4/aged microglial lipid droplets by 66%).",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Weekly (Outpace Aging Sync)",
+    whyItMatters:
+      "Proves that restoring glial waste clearance simultaneously rescues memory and suppresses systemic inflammaging across peripheral organs.",
+    annualVelocityPct: 24.0,
+    indexWeight: 0.8,
+    weightedContribution: 19.2,
+  },
+  {
+    id: "kpi-omics-genome-cost",
+    name: "Multi-Omics & Whole-Genome Sequencing Efficiency",
+    shortLabel: "Omics Cost Velocity",
+    currentValue: 100,
+    unit: "USD / WGS",
+    displayValue: "$100 WGS • $240 Multi-Omic",
+    trendDirection: "down",
+    trendMagnitude: "68% annualized cost-throughput improvement",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Industry & NHGRI",
+    sourceName: "NHGRI / Ultima Genomics / Illumina",
+    sourceUrl: "https://www.genome.gov/about-genomics/fact-sheets/DNA-Sequencing-Costs-Data",
+    methodologyNote:
+      "Tracks the combined cost curve of 30x whole-genome sequencing ($100 floor) plus high-plex plasma proteomics (7,000+ SomaScan/Olink proteins) and single-cell transcriptomics.",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Quarterly",
+    whyItMatters:
+      "Ultra-low-cost longitudinal multi-omics powers both AI virtual-cell training sets and personal Pace-of-Aging protocol feedback loops.",
+    annualVelocityPct: 68.0,
+    indexWeight: 0.8,
+    weightedContribution: 54.4,
+  },
+  {
+    id: "kpi-gene-therapies",
+    name: "FDA & EMA Approved Gene & RNA Therapies",
+    shortLabel: "Approved Gene Therapies",
+    currentValue: 28,
+    unit: "Approved Therapies",
+    displayValue: "28 Approved (+6 YoY)",
+    trendDirection: "up",
+    trendMagnitude: "+27% YoY clinical clearances",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Regulatory Registry",
+    sourceName: "FDA CBER / ASGCT Pipeline Report",
+    sourceUrl: "https://www.fda.gov/vaccines-blood-biologics/cellular-gene-therapy-products",
+    methodologyNote:
+      "Total cumulative FDA and EMA commercial approvals for in vivo and ex vivo gene, CRISPR base-editing, and programmable RNA therapies.",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Quarterly",
+    whyItMatters:
+      "Validates the viral and lipid nanoparticle (LNP) delivery vectors required to administer systemic longevity gene therapies.",
+    annualVelocityPct: 30.0,
+    indexWeight: 0.75,
+    weightedContribution: 22.5,
+  },
+  {
+    id: "kpi-organ-tissue-engineering",
+    name: "Xenotransplantation & Bioengineered Organ Replacement",
+    shortLabel: "Organ Replacement",
+    currentValue: 2,
+    unit: "Clinical Stage",
+    displayValue: "FDA Phase 1/2 Pig Kidney Trials",
+    trendDirection: "up",
+    trendMagnitude: "Multi-month 69-gene-edited porcine graft survival",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Clinical Trial",
+    sourceName: "eGenesis / United Therapeutics / FDA",
+    sourceUrl: "https://egenesisbio.com/",
+    methodologyNote:
+      "Tracks clinical survival of multiplex CRISPR-edited porcine kidneys/hearts (retroviral inactivation + human complement/coagulation transgenes) alongside 3D vascularized bioprinting.",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Quarterly",
+    whyItMatters:
+      "Provides a structural replacement failsafe for end-stage organ fibrosis while systemic molecular rejuvenation matures.",
+    annualVelocityPct: 21.0,
+    indexWeight: 0.7,
+    weightedContribution: 14.7,
+  },
+  {
+    id: "kpi-cell-therapies",
+    name: "Approved Stem, NK & Engineered Cell Therapies",
+    shortLabel: "Approved Cell Therapies",
+    currentValue: 74,
+    unit: "Approved Therapies",
+    displayValue: "74 Approved Globally",
+    trendDirection: "up",
+    trendMagnitude: "+20% YoY regenerative & CAR-T clearances",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Regulatory Registry",
+    sourceName: "FDA CBER / Alliance for Regenerative Medicine",
+    sourceUrl: "https://alliancerm.org/",
+    methodologyNote:
+      "Tracks cumulative regulatory approvals of autologous/allogeneic CAR-T, iPSC-derived progenitor cells, and NK immune rejuvenation infusions.",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Quarterly",
+    whyItMatters:
+      "Scalable iPSC and immune cell manufacturing directly enables thymic, hematopoietic, and tissue stem-cell replenishment.",
+    annualVelocityPct: 20.0,
+    indexWeight: 0.65,
+    weightedContribution: 13.0,
+  },
+  {
+    id: "kpi-longevity-clinical-trials",
+    name: "Active Gerotherapeutic & Healthspan Clinical Trials",
+    shortLabel: "Longevity Clinical Trials",
+    currentValue: 194,
+    unit: "Active Trials",
+    displayValue: "194 Active Trials",
+    trendDirection: "up",
+    trendMagnitude: "+18.5% YoY interventional aging trials",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Clinical Registry",
+    sourceName: "ClinicalTrials.gov / XPRIZE Healthspan",
+    sourceUrl: "https://clinicaltrials.gov/",
+    methodologyNote:
+      "Count of registered Phase 1-3 human interventional trials explicitly targeting biological aging pathways, multimorbidity prevention, or XPRIZE Healthspan functional reversal endpoints.",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Monthly",
+    whyItMatters:
+      "Measures the real-world clinical pipeline throughput translating geroscience discoveries into human protocols.",
+    annualVelocityPct: 18.5,
+    indexWeight: 0.65,
+    weightedContribution: 12.025,
+  },
+  {
+    id: "kpi-cancer-5yr-survival",
+    name: "5-Year All-Cancer Composite Survival Rate",
+    shortLabel: "All-Cancer 5-Yr Survival",
+    currentValue: 69.8,
+    unit: "% Survival",
+    displayValue: "69.8%",
+    trendDirection: "up",
+    trendMagnitude: "+1.2% YoY (ctDNA biopsy + mRNA vaccines)",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Epidemiological Registry",
+    sourceName: "NCI SEER / American Cancer Society 2026",
+    sourceUrl: "https://seer.cancer.gov/",
+    methodologyNote:
+      "Age-adjusted 5-year relative survival across all cancer sites, accelerated by cell-free DNA multi-cancer early detection (MCED) and personalized neoantigen mRNA immunotherapies.",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Annual",
+    whyItMatters:
+      "Oncogenesis is a primary age-related mortality bottleneck; intercepting solid tumors at Stage I via liquid biopsy is essential to reaching actuarial LEV.",
+    annualVelocityPct: 1.2,
+    indexWeight: 0.9,
+    weightedContribution: 1.08,
+  },
+  {
+    id: "kpi-cancer-early-stage-panel",
+    name: "Major Solid Tumor Survival Index (Lung, Breast, Colorectal)",
+    shortLabel: "Solid Tumor Survival",
+    currentValue: 74.2,
+    unit: "% Weighted Survival",
+    displayValue: "74.2% Composite (Lung 28.4%)",
+    trendDirection: "up",
+    trendMagnitude: "+2.1% YoY (targeted ADCs & early screening)",
+    confidenceClass: "Measured",
+    sourceQuality: "Tier 1 Epidemiological Registry",
+    sourceName: "NCI SEER Explorer",
+    sourceUrl: "https://seer.cancer.gov/statistics-network/explorer/",
+    methodologyNote:
+      "Consolidated survival index across the three highest-mortality solid tumors: Lung & Bronchus (28.4%, up +1.8% YoY), Breast (91.4%), and Colorectal (65.4%). Consolidates previously separate organ survival sub-rows.",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Annual",
+    whyItMatters:
+      "Tracks therapeutic progress in metastatic solid tumors that historically capped human healthspan in the 7th and 8th decades.",
+    annualVelocityPct: 2.1,
+    indexWeight: 0.5,
+    weightedContribution: 1.05,
+  },
+  {
+    id: "kpi-cryonics-biostasis",
+    name: "Biostasis & Reversible Cryopreservation Readiness",
+    shortLabel: "Biostasis & Cryonics",
+    currentValue: 5420,
+    unit: "Signed Members (~610 Preserved)",
+    displayValue: "5,420 Members • ~610 Patients",
+    trendDirection: "up",
+    trendMagnitude: "+8.5% YoY vitrification & nanowarming R&D",
+    confidenceClass: "Reported",
+    sourceQuality: "Tier 2 Organizational Census",
+    sourceName: "Alcor / Tomorrow Biostasis / Cryonics Institute",
+    sourceUrl: "https://www.alcor.org/",
+    methodologyNote:
+      "Consolidated metric tracking funded biostasis memberships (~5,420 globally), cryopreserved patients (~610), and cryoprotectant toxicity/nanowarming organ recovery milestones.",
+    lastUpdated: "2026-11-05",
+    updateCadence: "Quarterly",
+    whyItMatters:
+      "Serves as the Ambulance to Future Medicine (Plan B bridge) for individuals whose chronological age precedes clinical LEV intercept.",
+    annualVelocityPct: 8.5,
+    indexWeight: 0.25,
+    weightedContribution: 2.125,
+  },
+];
+
 export interface LevWeeklyBreakthrough {
   id: string;
   title: string;
@@ -476,6 +831,8 @@ export interface LevWeeklyPulse {
   expertConsensusSummary: string;
   breakthroughsSummary: string;
   breakthroughs: LevWeeklyBreakthrough[];
+  /** Optional KPI velocity updates pushed by this weekly issue */
+  kpiUpdates?: LevKpiVelocityUpdate[];
   /** Net conservative Bayesian shift applied by this week's pulse */
   netWeeklyDelta: {
     /** Days shifted on 99th-Pct LEV intercept (negative = pulled closer) */
@@ -493,54 +850,120 @@ export interface LevWeeklyPulse {
  * Canonical Weekly Newsletter Pulse Log.
  * New issues pushed via `POST /api/v1/lev/weekly-pulse` (or added here)
  * automatically feed into `computeLevDashboard()` and render in both
- * FutureGraph (`/lev`) and the Newsletter embed (`?view=pulse` or `?showPulse=true`).
+ * FutureGraph (`/lev`), `levlhealth.com/newsletter`, and `agifutures.org/singularity-tracker`.
  */
 export const LEV_WEEKLY_PULSES: LevWeeklyPulse[] = [
   {
-    id: "pulse-2026-w45",
+    id: "pulse-2026-outpace-01",
     weekOf: "2026-11-05",
-    issueLabel: "Weekly Longevity Pulse • Issue #45",
+    issueLabel: "Outpace Aging • Edition #1 (Nov 5, 2026)",
     newsletterTitle:
-      "In Vivo Partial Reprogramming Advances to Non-Human Primate Optic Nerve & Systemic Biomarker Endpoints",
-    newsletterUrl: "https://www.levlhealth.com/LEVTrajectory/",
-    authorOrSource: "LEVL Weekly Longevity Dispatch",
+      "Enzyme Shield Extends Mouse Lifespan 17%, Spider-Silk Senolytic Nanovaccine Cuts Mortality 72%, and 51-Trial TranslAGE Clock Benchmark",
+    newsletterUrl: "https://www.levlhealth.com/newsletter/edition-1",
+    authorOrSource: "Outpace Aging • LEVL Weekly Longevity Roundup",
     predictionMarketsSummary:
-      "Manifold 'Humanity achieves LEV by 2040' held at 36% (+1.5% WoW on AI-guided delivery vector news), while Metaculus #6592 population-actuarial median remained anchored at Nov 2053.",
+      "Metaculus #6592 (national LEV) held at Nov 2053 while Manifold 2036/2040 frontier LEV markets firmed (+1.5% WoW), pulling our 99th-percentile LEV aggregate 26 days closer to October 2036.",
     expertConsensusSummary:
-      "George Church and David Sinclair's translational groups highlighted inducible AAV/lipid-nanoparticle OSK delivery safety in primate ophthalmic models, reinforcing a mid-2030s bridge for 99th-percentile early adopters.",
+      "Translational geroscience teams highlighted that standardized surrogate methylation clocks (DunedinPACE, PCGrimAge across 51 human trials) and immune-mediated senolytics are compressing Phase 2 efficacy readouts from multi-year survival studies to 6-month biomarker windows.",
     breakthroughsSummary:
-      "Multi-omic DunedinPACE + OMICmAge longitudinal cohort tracking confirmed sustained -0.003 yr/yr protocol drift when combining SGLT2/GLP-1 micro-dosing, HIIT VO2-max periodization, and senolytic pulses.",
+      "Five peer-reviewed breakthroughs converged on intracellular maintenance: oral AEP inhibitor #11a preserved NAMPT to extend aged mouse lifespan 17% (24m to 28m); spider-silk nanovaccine CK5-GC-NV cleared Gpnmb+ senescent cells (HR = 0.28); astrocyte FGF13 and neuronal PLA2G2F reversed glial lipid toxicity and systemic IL-6; and TranslAGE benchmarked 16 epigenetic clocks across 51 human clinical trials.",
     breakthroughs: [
       {
-        id: "bt-2026-w45-1",
-        title: "Inducible OSK Epigenetic Reprogramming Shows Zero Teratoma Signal in 18-Month Primate Follow-up",
+        id: "bt-outpace-01-1",
+        title: "Oral AEP Inhibitor #11a Protects NAMPT to Extend Aged Mouse Lifespan by 17% (24 to 28 Months)",
+        category: "ai_biotech",
+        summary:
+          "Blocking asparaginyl endopeptidase (AEP) prevents proteolytic cleavage of NAMPT at N164/N335, restoring tissue NAD+ and SIRT1 deacetylation and extending average lifespan in 18-month-old mice by 17%.",
+        sourceUrl: "https://www.cell.com/iscience/fulltext/S2589-0042(26)03373-0",
+        sourceLabel: "iScience (Oct 2026)",
+        delta99thLevYears: -0.02,
+        deltaPoA99th: -0.0008,
+        deltaPoA80th: -0.0004,
+      },
+      {
+        id: "bt-outpace-01-2",
+        title: "Bi-Adjuvant Spider-Silk Senolytic Nanovaccine (CK5-GC-NV) Extends Median Mouse Survival to 91 Weeks (HR = 0.28)",
         category: "clinical_trial",
         summary:
-          "Doxycycline-inducible polycistronic OSK viral vectors restored youthful DNA methylation signatures in retinal ganglion tissue without loss of somatic cell identity.",
-        sourceUrl: "https://life-biosciences.com/",
-        sourceLabel: "Life Biosciences / Translational Preprint",
-        delta99thLevYears: -0.04,
-        deltaPoA99th: -0.0015,
+          "Dual STING + TLR9 spider-silk nanovaccine rejuvenated aged dendritic cells and primed CD8+ T cells to clear Gpnmb+ senescent cells, extending median survival from 79.0 to 91.0 weeks (72% lower mortality hazard).",
+        sourceUrl: "https://doi.org/10.1002/advs.78545",
+        sourceLabel: "Advanced Science (Oct 2026)",
+        delta99thLevYears: -0.025,
+        deltaPoA99th: -0.001,
         deltaPoA80th: -0.0005,
       },
       {
-        id: "bt-2026-w45-2",
-        title: "Rejuvenation Olympics & LEVL Cohort Data: Multi-Clock Shrinkage Confirms 0.66 yr/yr 99th-Pct Anchor",
+        id: "bt-outpace-01-3",
+        title: "Restoring Astrocyte FGF13 Reactivates Phafin2 Autophagy and Lowers Systemic Blood IL-6 & IFN-γ",
+        category: "ai_biotech",
+        summary:
+          "Prefrontal cortex astrocyte FGF13 restoration reactivated lysosomal autophagy and reduced circulating inflammatory cytokines and peripheral organ senescence in 26-month-old mice.",
+        sourceUrl: "https://doi.org/10.1111/acel.70784",
+        sourceLabel: "Aging Cell (Oct 2026)",
+        delta99thLevYears: -0.01,
+        deltaPoA99th: -0.0004,
+        deltaPoA80th: -0.0002,
+      },
+      {
+        id: "bt-outpace-01-4",
+        title: "Secreted Neuronal Phospholipase PLA2G2F Clears 66% of Toxic Microglial Lipid Droplets in Human iPSC & APOE4 Models",
+        category: "ai_biotech",
+        summary:
+          "Replacing neuronal PLA2G2F hydrolyzed peroxidized phospholipids and cholesterol esters in human iPSC-derived microglia, restoring Aβ phagocytosis and spatial memory.",
+        sourceUrl: "https://doi.org/10.1038/s41593-026-02465-z",
+        sourceLabel: "Nature Neuroscience (Oct 2026)",
+        delta99thLevYears: -0.01,
+        deltaPoA99th: -0.0004,
+        deltaPoA80th: -0.0002,
+      },
+      {
+        id: "bt-outpace-01-5",
+        title: "TranslAGE Standardized Benchmark Across 51 Human Interventional Trials Validates DunedinPACE & PCGrimAge",
         category: "biomarker_clock",
         summary:
-          "Cross-validation across GrimAge v2, DunedinPACE, and SymphonyAge plasma proteomics reduced single-clock technical noise by 38%, validating conservative shrinkage bounds.",
-        sourceUrl: "https://www.levlhealth.com/LEVTrajectory/",
-        sourceLabel: "LEVL Trajectory Cohort Analysis",
-        delta99thLevYears: -0.02,
-        deltaPoA99th: -0.001,
-        deltaPoA80th: -0.001,
+          "Harmonized evaluation of 16 epigenetic clocks and 94 DNAm biomarkers across 51 human longitudinal trials confirmed DunedinPACE and PCGrimAge reliably detect biological age deceleration within months.",
+        sourceUrl: "https://doi.org/10.1038/s41591-026-04562-9",
+        sourceLabel: "Nature Medicine (Aug 2026)",
+        delta99thLevYears: -0.025,
+        deltaPoA99th: -0.0009,
+        deltaPoA80th: -0.0007,
+      },
+    ],
+    kpiUpdates: [
+      {
+        id: "kpi-epigenetic-clock-validation",
+        annualVelocityPct: 38.0,
+        displayValue: "51 Human RCTs • $85/assay",
+        trendMagnitude: "DunedinPACE & PCGrimAge validated across 51 trials",
+        lastUpdated: "2026-11-05",
+      },
+      {
+        id: "kpi-senolytics-clinical",
+        annualVelocityPct: 26.0,
+        displayValue: "Phase 2 + Nanovaccines",
+        trendMagnitude: "HR 0.28 survival gain in Gpnmb+ nanovaccine",
+        lastUpdated: "2026-11-05",
+      },
+      {
+        id: "kpi-nad-salvage-proteostasis",
+        annualVelocityPct: 22.5,
+        displayValue: "+17% Lifespan (AEP/NAMPT)",
+        trendMagnitude: "24m → 28m murine lifespan via #11a AEP blockade",
+        lastUpdated: "2026-11-05",
+      },
+      {
+        id: "kpi-neuro-glial-rejuvenation",
+        annualVelocityPct: 24.0,
+        displayValue: "FGF13 + PLA2G2F Rescue",
+        trendMagnitude: "-66% microglial lipid load & lower systemic IL-6",
+        lastUpdated: "2026-11-05",
       },
     ],
     netWeeklyDelta: {
-      days99thLevShift: -22,
-      days80thLevShift: -11,
-      poa99thShift: -0.0025,
-      poa80thShift: -0.0015,
+      days99thLevShift: -26,
+      days80thLevShift: -16,
+      poa99thShift: -0.0035,
+      poa80thShift: -0.002,
     },
   },
   {

@@ -1,12 +1,24 @@
 import {
+  CANONICAL_LEV_KPI_METRICS,
   COHORT_PACE_PROFILES,
   LEV_EXPERT_PREDICTIONS,
   LEV_PREDICTION_MARKETS,
   LEV_WEEKLY_PULSES,
   LEVL_TRAJECTORY_REFERENCE,
+  LevKpiVelocityMetric,
+  LevKpiVelocityUpdate,
   LevWeeklyBreakthrough,
   LevWeeklyPulse,
 } from "@/data/lev-seed";
+
+export interface LevKpiVelocityEngineState {
+  metrics: LevKpiVelocityMetric[];
+  totalWeightedVelocity: number;
+  totalWeight: number;
+  weightedAvgVelocityPct: number;
+  normalizedAccelerationVector: number;
+  velocityMultiplier: number;
+}
 
 declare global {
   // eslint-disable-next-line no-var
@@ -20,6 +32,63 @@ export function getLevWeeklyPulses(): LevWeeklyPulse[] {
   return global.__FUTUREGRAPH_LEV_PULSES__;
 }
 
+export function computeKpiVelocityEngine(pulses: LevWeeklyPulse[]): LevKpiVelocityEngineState {
+  // Apply kpiUpdates chronologically (oldest -> newest)
+  const metricMap = new Map<string, LevKpiVelocityMetric>();
+  for (const base of CANONICAL_LEV_KPI_METRICS) {
+    metricMap.set(base.id, { ...base });
+  }
+
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    const pulse = pulses[i];
+    if (!Array.isArray(pulse.kpiUpdates)) continue;
+    for (const upd of pulse.kpiUpdates) {
+      const existing = metricMap.get(upd.id);
+      if (!existing) continue;
+      const nextVel =
+        typeof upd.annualVelocityPct === "number" && Number.isFinite(upd.annualVelocityPct)
+          ? Math.max(0, Math.min(200, upd.annualVelocityPct))
+          : existing.annualVelocityPct;
+      metricMap.set(upd.id, {
+        ...existing,
+        annualVelocityPct: nextVel,
+        weightedContribution: Math.round(nextVel * existing.indexWeight * 100) / 100,
+        displayValue: upd.displayValue || existing.displayValue,
+        trendMagnitude: upd.trendMagnitude || existing.trendMagnitude,
+        lastUpdated: upd.lastUpdated || pulse.weekOf || existing.lastUpdated,
+      });
+    }
+  }
+
+  const metrics = Array.from(metricMap.values()).sort(
+    (a, b) => b.indexWeight - a.indexWeight || b.annualVelocityPct - a.annualVelocityPct
+  );
+  const totalWeightedVelocity =
+    Math.round(
+      metrics.reduce((acc, m) => acc + m.annualVelocityPct * m.indexWeight, 0) * 100
+    ) / 100;
+  const totalWeight =
+    Math.round(metrics.reduce((acc, m) => acc + m.indexWeight, 0) * 100) / 100;
+  const weightedAvgVelocityPct =
+    totalWeight > 0
+      ? Math.round((totalWeightedVelocity / totalWeight) * 100) / 100
+      : 25.0;
+  const normalizedAccelerationVector =
+    Math.round(Math.min(1.0, Math.max(0.05, weightedAvgVelocityPct / 200)) * 100) / 100;
+  // Conservative velocity multiplier around the 25% baseline
+  const velocityMultiplier =
+    Math.round(Math.max(0.92, Math.min(1.12, 1 + (weightedAvgVelocityPct - 25.0) * 0.004)) * 1000) / 1000;
+
+  return {
+    metrics,
+    totalWeightedVelocity,
+    totalWeight,
+    weightedAvgVelocityPct,
+    normalizedAccelerationVector,
+    velocityMultiplier,
+  };
+}
+
 export function addLevWeeklyPulse(input: {
   id?: string;
   weekOf: string;
@@ -31,6 +100,7 @@ export function addLevWeeklyPulse(input: {
   expertConsensusSummary: string;
   breakthroughsSummary: string;
   breakthroughs?: LevWeeklyBreakthrough[];
+  kpiUpdates?: LevKpiVelocityUpdate[];
   netWeeklyDelta?: Partial<LevWeeklyPulse["netWeeklyDelta"]>;
 }): LevWeeklyPulse {
   const pulses = getLevWeeklyPulses();
@@ -81,6 +151,7 @@ export function addLevWeeklyPulse(input: {
     expertConsensusSummary: input.expertConsensusSummary,
     breakthroughsSummary: input.breakthroughsSummary,
     breakthroughs,
+    kpiUpdates: Array.isArray(input.kpiUpdates) ? input.kpiUpdates : undefined,
     netWeeklyDelta: {
       days99thLevShift: Math.max(-45, Math.min(45, computedDays99th)),
       days80thLevShift: Math.max(-45, Math.min(45, computedDays80th)),
@@ -196,6 +267,8 @@ export interface LevDashboardComputation {
   };
   /** Year-by-year trajectory series (2026 -> 2060) */
   trajectorySeries: LevTrajectoryPoint[];
+  /** Canonical Longevity KPI Velocity Normalization Engine (shared with AGI Futures Singularity Tracker) */
+  kpiVelocityEngine: LevKpiVelocityEngineState;
   /** Latest Weekly Newsletter Pulse & Breakthrough summary */
   latestWeeklyPulse: LevWeeklyPulse;
   /** Historical Weekly Newsletter Pulses (reverse chronological) */
@@ -259,7 +332,8 @@ function computeBiotechRejuvenationOffsetAtYear(
   year: number,
   cohortId: "p99" | "p80" | "p50",
   updateMode: ConservativeUpdateMode,
-  scenarioShiftYears = 0
+  scenarioShiftYears = 0,
+  velocityMultiplier = 1.0
 ): number {
   const profile = COHORT_PACE_PROFILES[cohortId];
   // Effective technological maturity year experienced by this cohort (accounting for early-access lead time)
@@ -267,7 +341,7 @@ function computeBiotechRejuvenationOffsetAtYear(
   const effectiveTechYear =
     year + profile.biotechAccessLeadYears * 0.72 - scenarioShiftYears;
 
-  const dampingFactor = updateMode === "conservative" ? 1.0 : 1.14;
+  const dampingFactor = (updateMode === "conservative" ? 1.0 : 1.14) * velocityMultiplier;
 
   // Logistic + compounding S-curve centered around effectiveTechYear = 2046.5 (for population) / ~2036.8 (for p99)
   const tRel = effectiveTechYear - 2046.2;
@@ -365,11 +439,15 @@ export function computeLevDashboard(options?: {
       0
     ) / expWeightSum;
 
+  const weeklyPulses = getLevWeeklyPulses();
+  const kpiVelocityEngine = computeKpiVelocityEngine(weeklyPulses);
+  const velocityMultiplier = kpiVelocityEngine.velocityMultiplier;
+
   // 3. Find exact trajectory intercept years where Net Effective PoA <= 0.00
   const findInterceptYear = (cohortId: "p99" | "p80" | "p50"): number => {
     for (let y = 2026.0; y <= 2075.0; y += 0.05) {
       const intrinsic = computeIntrinsicPoAAtYear(y, cohortId, updateMode);
-      const offset = computeBiotechRejuvenationOffsetAtYear(y, cohortId, updateMode, 0);
+      const offset = computeBiotechRejuvenationOffsetAtYear(y, cohortId, updateMode, 0, velocityMultiplier);
       if (intrinsic - offset <= 0) {
         return Math.round(y * 10) / 10;
       }
@@ -382,7 +460,6 @@ export function computeLevDashboard(options?: {
   const trajectoryIntercept50thYear = findInterceptYear("p50");
 
   // 4. Combined Weighted Aggregate Dates (+ dynamic post-seed weekly pulse shifts)
-  const weeklyPulses = getLevWeeklyPulses();
   const seedIds = new Set(LEV_WEEKLY_PULSES.map((p) => p.id));
   const dynamicPulses = weeklyPulses.filter((p) => !seedIds.has(p.id));
   const dynamicYears99thShift = dynamicPulses.reduce(
@@ -449,7 +526,8 @@ export function computeLevDashboard(options?: {
       decimalYearNow,
       cohortId,
       updateMode,
-      0
+      0,
+      velocityMultiplier
     );
     const netPoA = Math.max(0, Math.round((intrinsic - offset) * 1000) / 1000);
     const bioMonthsPerYear = Math.round(intrinsic * 12 * 10) / 10;
@@ -497,19 +575,19 @@ export function computeLevDashboard(options?: {
     const p80Intr = computeIntrinsicPoAAtYear(year, "p80", updateMode);
     const p50Intr = computeIntrinsicPoAAtYear(year, "p50", updateMode);
 
-    const p99Off = computeBiotechRejuvenationOffsetAtYear(year, "p99", updateMode, 0);
-    const p80Off = computeBiotechRejuvenationOffsetAtYear(year, "p80", updateMode, 0);
-    const p50Off = computeBiotechRejuvenationOffsetAtYear(year, "p50", updateMode, 0);
+    const p99Off = computeBiotechRejuvenationOffsetAtYear(year, "p99", updateMode, 0, velocityMultiplier);
+    const p80Off = computeBiotechRejuvenationOffsetAtYear(year, "p80", updateMode, 0, velocityMultiplier);
+    const p50Off = computeBiotechRejuvenationOffsetAtYear(year, "p50", updateMode, 0, velocityMultiplier);
 
     const p99Net = Math.round((p99Intr - p99Off) * 1000) / 1000;
     const p80Net = Math.round((p80Intr - p80Off) * 1000) / 1000;
     const p50Net = Math.round((p50Intr - p50Off) * 1000) / 1000;
 
     // Cone of Uncertainty (5th percentile fast breakthrough vs 95th percentile slow breakthrough)
-    const p99FastOff = computeBiotechRejuvenationOffsetAtYear(year, "p99", updateMode, -4.8);
-    const p99SlowOff = computeBiotechRejuvenationOffsetAtYear(year, "p99", updateMode, 5.5);
-    const p80FastOff = computeBiotechRejuvenationOffsetAtYear(year, "p80", updateMode, -4.8);
-    const p80SlowOff = computeBiotechRejuvenationOffsetAtYear(year, "p80", updateMode, 5.5);
+    const p99FastOff = computeBiotechRejuvenationOffsetAtYear(year, "p99", updateMode, -4.8, velocityMultiplier);
+    const p99SlowOff = computeBiotechRejuvenationOffsetAtYear(year, "p99", updateMode, 5.5, velocityMultiplier);
+    const p80FastOff = computeBiotechRejuvenationOffsetAtYear(year, "p80", updateMode, -4.8, velocityMultiplier);
+    const p80SlowOff = computeBiotechRejuvenationOffsetAtYear(year, "p80", updateMode, 5.5, velocityMultiplier);
 
     if (year > 2026) {
       p99BioAge = Math.max(24, p99BioAge + p99Net);
@@ -586,6 +664,7 @@ export function computeLevDashboard(options?: {
     },
     cohorts,
     trajectorySeries,
+    kpiVelocityEngine,
     latestWeeklyPulse: weeklyPulses[0],
     weeklyPulses,
     levlReference: LEVL_TRAJECTORY_REFERENCE,

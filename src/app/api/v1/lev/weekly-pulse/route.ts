@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
       latestPulse: pulses[0],
       pulses,
       computation,
+      kpiVelocityEngine: computation.kpiVelocityEngine,
     },
     { headers: CORS_HEADERS }
   );
@@ -86,6 +87,7 @@ export async function POST(request: NextRequest) {
       expertConsensusSummary,
       breakthroughsSummary,
       breakthroughs: Array.isArray(body.breakthroughs) ? body.breakthroughs : [],
+      kpiUpdates: Array.isArray(body.kpiUpdates) ? body.kpiUpdates : undefined,
       netWeeklyDelta: body.netWeeklyDelta,
     });
 
@@ -102,6 +104,7 @@ export async function POST(request: NextRequest) {
           "Weekly Newsletter Pulse synced to FutureGraph LEV Observatory and applied to conservative Bayesian trajectory.",
         pulse,
         computation,
+        kpiVelocityEngine: computation.kpiVelocityEngine,
       },
       { status: 201, headers: CORS_HEADERS }
     );
