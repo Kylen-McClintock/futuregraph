@@ -105,28 +105,42 @@ export function Navbar() {
 
   const primaryLinks = [
     {
-      href: "/scenarios/nature-of-reality",
-      label: "Nature of Reality (Sankey)",
+      href: "/",
+      label: "All Graphs",
       icon: Compass,
-      match: (p: string) => p.startsWith("/scenarios/nature-of-reality"),
+      match: (p: string) => p === "/",
+    },
+    {
+      href: "/lev",
+      label: "LEV & Pace of Aging",
+      icon: Activity,
+      match: (p: string) => p.startsWith("/lev"),
     },
     {
       href: "/scenarios/ai-2050",
-      label: "AI 2050 (5 Worlds)",
-      icon: Compass,
+      label: "AI 2050",
+      icon: GitBranch,
       match: (p: string) =>
-        p === "/" ||
         p === "/scenarios/ai-2050" ||
         p.startsWith("/scenarios/ai-2050/n/"),
     },
     {
+      href: "/scenarios/nature-of-reality",
+      label: "Nature of Reality",
+      icon: Compass,
+      match: (p: string) => p.startsWith("/scenarios/nature-of-reality"),
+    },
+    {
       href: "/scenarios/ai-2027",
-      label: "AI 2027 Map",
+      label: "AI 2027",
       icon: GitBranch,
       match: (p: string) =>
         p === "/scenarios/ai-2027" ||
         p.startsWith("/scenarios/ai-2027/n/"),
     },
+  ];
+
+  const secondaryLinks = [
     {
       href: "/scenarios/ai-2040",
       label: "AI 2040 Map",
@@ -147,9 +161,6 @@ export function Navbar() {
       icon: Presentation,
       match: (p: string) => p.startsWith("/scenarios/ai-2027/present"),
     },
-  ];
-
-  const secondaryLinks = [
     {
       href: "/scenarios/ai-2027/forks/fork-hardware-bottleneck-2029",
       label: "Scenario Forks",
@@ -183,6 +194,10 @@ export function Navbar() {
   ];
 
   const isSecondaryActive = secondaryLinks.some((item) => item.match(pathname));
+
+  if (pathname.startsWith("/embed")) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md">

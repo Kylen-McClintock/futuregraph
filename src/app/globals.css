@@ -337,6 +337,13 @@ input[type="range"].fg-slider::-moz-range-thumb {
   font-variant-numeric: tabular-nums;
 }
 
+.fg-responsive-table thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 15;
+  background-color: var(--bg-elevated);
+}
+
 .fg-responsive-table th:first-child,
 .fg-responsive-table td:first-child {
   position: sticky;
@@ -344,6 +351,164 @@ input[type="range"].fg-slider::-moz-range-thumb {
   z-index: 10;
   background-color: var(--bg-surface);
   border-inline-end: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+@container (width < 600px) {
+  .fg-responsive-table.fg-stack-mobile,
+  .fg-responsive-table.fg-stack-mobile thead,
+  .fg-responsive-table.fg-stack-mobile tbody,
+  .fg-responsive-table.fg-stack-mobile tr,
+  .fg-responsive-table.fg-stack-mobile th,
+  .fg-responsive-table.fg-stack-mobile td {
+    display: block;
+  }
+
+  .fg-responsive-table.fg-stack-mobile thead {
+    display: none;
+  }
+
+  .fg-responsive-table.fg-stack-mobile tbody tr {
+    margin-block-end: 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  .fg-responsive-table.fg-stack-mobile tbody th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    background-color: var(--bg-elevated);
+    border-inline-end: 0;
+    border-block-end: 1px solid rgba(148, 163, 184, 0.2);
+  }
+
+  .fg-responsive-table.fg-stack-mobile td:nth-child(2)::before {
+    content: var(--label-2) ": ";
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .fg-responsive-table.fg-stack-mobile td:nth-child(3)::before {
+    content: var(--label-3) ": ";
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .fg-responsive-table.fg-stack-mobile td:nth-child(4)::before {
+    content: var(--label-4) ": ";
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .fg-responsive-table.fg-stack-mobile td:nth-child(5)::before {
+    content: var(--label-5) ": ";
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .fg-responsive-table.fg-stack-mobile td:nth-child(6)::before {
+    content: var(--label-6) ": ";
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+}
+
+/* Modern Web Guidance: size-aware-styling & card */
+.fg-card-size-container {
+  container-type: inline-size;
+}
+
+.fg-adaptive-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .fg-adaptive-card-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+@supports (container-type: inline-size) {
+  @media (min-width: 640px) {
+    .fg-adaptive-card-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+
+  @container (min-width: 440px) {
+    .fg-adaptive-card-row {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+}
+
+/* Modern Web Guidance: css-layout (subgrid) & card (stretched .fg-card-link) */
+.fg-atlas-grid {
+  display: grid;
+  inline-size: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 1.25rem;
+}
+
+.fg-atlas-card {
+  grid-row: span 4;
+  display: grid;
+  /* Same-cascade fallback for older browsers before subgrid */
+  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: subgrid;
+  gap: 0.85rem;
+  position: relative;
+  container-type: inline-size;
+  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.fg-atlas-card:has(a.fg-card-link) {
+  position: relative;
+}
+
+.fg-atlas-card a.fg-card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+}
+
+.fg-atlas-card a.fg-card-link:focus-visible {
+  outline: none;
+}
+
+.fg-atlas-card:has(a.fg-card-link:focus-visible) {
+  outline: 2px solid #10b981;
+  outline-offset: 3px;
+}
+
+.fg-atlas-card:has(a.fg-card-link:hover) {
+  transform: translateY(-2px);
+  border-color: rgba(16, 185, 129, 0.45);
+  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.5);
+}
+
+.fg-atlas-card:has(a.fg-card-link) a:not(.fg-card-link),
+.fg-atlas-card:has(a.fg-card-link) button {
+  position: relative;
+  z-index: 1;
+}
+
+/* Modern Web Guidance: content-first-noise-reduction */
+html {
+  container-type: scroll-state;
+}
+
+:target {
+  scroll-margin-top: 4rem;
 }
 
 /* Animated flow pulse along active river causal chain */

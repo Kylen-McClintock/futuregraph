@@ -866,5 +866,42 @@ describe("Nature of Reality 7-Epoch Gradient Sankey — Acceptance Tests", () =>
   });
 });
 
+describe("LEV 99th-Percentile Aggregate & Dynamic Pace of Aging Engine (LEVL Trajectory)", () => {
+  it("computes conservative 99th, 80th, and 50th percentile LEV aggregate dates and current Pace of Aging", async () => {
+    const { computeLevDashboard } = await import("@/lib/lev-engine");
+    const { LEV_PREDICTION_MARKETS, LEV_EXPERT_PREDICTIONS, LEVL_TRAJECTORY_REFERENCE } =
+      await import("@/data/lev-seed");
+
+    expect(LEVL_TRAJECTORY_REFERENCE.url).toBe("https://www.levlhealth.com/LEVTrajectory/");
+    expect(LEV_PREDICTION_MARKETS.length).toBeGreaterThanOrEqual(5);
+    expect(LEV_EXPERT_PREDICTIONS.length).toBeGreaterThanOrEqual(10);
+
+    const res = computeLevDashboard({
+      referenceDate: new Date("2026-11-05T12:00:00Z"),
+      updateMode: "conservative",
+      currentChronologicalAge: 35,
+    });
+
+    // 99th percentile human reaches LEV significantly earlier than 80th and 50th percentile
+    expect(res.aggregate99thYear).toBeGreaterThanOrEqual(2034.0);
+    expect(res.aggregate99thYear).toBeLessThanOrEqual(2039.5);
+    expect(res.aggregate80thYear).toBeGreaterThan(res.aggregate99thYear + 3.5);
+    expect(res.aggregate50thYear).toBeGreaterThan(res.aggregate80thYear + 5.0);
+
+    // Current Pace of Aging ordering: 99th (<0.70) < 80th (~0.84) < 50th (~1.00)
+    expect(res.cohorts.p99.intrinsicPaceOfAging).toBeGreaterThan(0.55);
+    expect(res.cohorts.p99.intrinsicPaceOfAging).toBeLessThan(0.70);
+    expect(res.cohorts.p80.intrinsicPaceOfAging).toBeGreaterThan(0.80);
+    expect(res.cohorts.p80.intrinsicPaceOfAging).toBeLessThan(0.88);
+    expect(res.cohorts.p50.intrinsicPaceOfAging).toBeCloseTo(1.0, 1);
+
+    // Trajectory covers 2026 to 2060 (35 annual points)
+    expect(res.trajectorySeries).toHaveLength(35);
+    expect(res.trajectorySeries[0].year).toBe(2026);
+    expect(res.trajectorySeries[res.trajectorySeries.length - 1].year).toBe(2060);
+  });
+});
+
+
 
 
