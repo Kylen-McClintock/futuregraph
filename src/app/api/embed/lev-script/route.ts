@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
   var view = currentScript.getAttribute("data-view") || "all";
   var age = currentScript.getAttribute("data-age") || "35";
   var mode = currentScript.getAttribute("data-mode") || "conservative";
+  var detail = currentScript.getAttribute("data-detail") || "full";
+  var showPulse = currentScript.getAttribute("data-show-pulse") || "false";
   var hostOrigin = ${JSON.stringify(origin)};
 
   var container = document.createElement("div");
@@ -25,12 +27,14 @@ export async function GET(request: NextRequest) {
   var srcUrl = hostOrigin + "/embed/lev?theme=" + encodeURIComponent(theme) +
     "&view=" + encodeURIComponent(view) +
     "&age=" + encodeURIComponent(age) +
-    "&mode=" + encodeURIComponent(mode);
+    "&mode=" + encodeURIComponent(mode) +
+    "&detail=" + encodeURIComponent(detail) +
+    "&showPulse=" + encodeURIComponent(showPulse);
 
   iframe.src = srcUrl;
   iframe.title = "Longevity Escape Velocity (LEV) 99th Percentile Aggregate & Dynamic Pace of Aging Tracker (LEVL Trajectory)";
   iframe.style.width = "100%";
-  iframe.style.minHeight = "780px";
+  iframe.style.minHeight = view === "hero" ? "440px" : "780px";
   iframe.style.border = "1px solid rgba(148, 163, 184, 0.25)";
   iframe.style.borderRadius = "16px";
   iframe.style.display = "block";
@@ -41,7 +45,7 @@ export async function GET(request: NextRequest) {
 
   window.addEventListener("message", function(event) {
     if (!event.data || event.data.type !== "fg-lev-embed-resize") return;
-    if (typeof event.data.height === "number" && event.data.height > 320) {
+    if (typeof event.data.height === "number" && event.data.height > 260) {
       iframe.style.height = (event.data.height + 24) + "px";
     }
   });

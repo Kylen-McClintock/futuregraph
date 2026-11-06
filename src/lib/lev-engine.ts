@@ -2,8 +2,101 @@ import {
   COHORT_PACE_PROFILES,
   LEV_EXPERT_PREDICTIONS,
   LEV_PREDICTION_MARKETS,
+  LEV_WEEKLY_PULSES,
   LEVL_TRAJECTORY_REFERENCE,
+  LevWeeklyBreakthrough,
+  LevWeeklyPulse,
 } from "@/data/lev-seed";
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __FUTUREGRAPH_LEV_PULSES__: LevWeeklyPulse[] | undefined;
+}
+
+export function getLevWeeklyPulses(): LevWeeklyPulse[] {
+  if (!global.__FUTUREGRAPH_LEV_PULSES__) {
+    global.__FUTUREGRAPH_LEV_PULSES__ = [...LEV_WEEKLY_PULSES];
+  }
+  return global.__FUTUREGRAPH_LEV_PULSES__;
+}
+
+export function addLevWeeklyPulse(input: {
+  id?: string;
+  weekOf: string;
+  issueLabel?: string;
+  newsletterTitle: string;
+  newsletterUrl?: string;
+  authorOrSource?: string;
+  predictionMarketsSummary: string;
+  expertConsensusSummary: string;
+  breakthroughsSummary: string;
+  breakthroughs?: LevWeeklyBreakthrough[];
+  netWeeklyDelta?: Partial<LevWeeklyPulse["netWeeklyDelta"]>;
+}): LevWeeklyPulse {
+  const pulses = getLevWeeklyPulses();
+  const breakthroughs: LevWeeklyBreakthrough[] = (input.breakthroughs ?? []).map(
+    (b, idx) => ({
+      id: b.id || `bt-${input.weekOf}-${idx + 1}`,
+      title: b.title,
+      category: b.category || "clinical_trial",
+      summary: b.summary,
+      sourceUrl: b.sourceUrl || "https://www.levlhealth.com/LEVTrajectory/",
+      sourceLabel: b.sourceLabel || "Weekly Longevity Pulse",
+      // Conservative per-breakthrough clamp: max ±0.12 yrs and ±0.005 yr/yr
+      delta99thLevYears: Math.max(-0.12, Math.min(0.12, Number(b.delta99thLevYears ?? -0.02))),
+      deltaPoA99th: Math.max(-0.005, Math.min(0.005, Number(b.deltaPoA99th ?? -0.001))),
+      deltaPoA80th: Math.max(-0.005, Math.min(0.005, Number(b.deltaPoA80th ?? -0.0005))),
+    })
+  );
+
+  const computedDays99th =
+    input.netWeeklyDelta?.days99thLevShift ??
+    Math.round(
+      breakthroughs.reduce((acc, b) => acc + b.delta99thLevYears * 365.25, 0)
+    );
+  const computedDays80th =
+    input.netWeeklyDelta?.days80thLevShift ?? Math.round(computedDays99th * 0.65);
+  const computedPoA99th =
+    input.netWeeklyDelta?.poa99thShift ??
+    Math.round(
+      breakthroughs.reduce((acc, b) => acc + b.deltaPoA99th, 0) * 10000
+    ) / 10000;
+  const computedPoA80th =
+    input.netWeeklyDelta?.poa80thShift ??
+    Math.round(
+      breakthroughs.reduce((acc, b) => acc + b.deltaPoA80th, 0) * 10000
+    ) / 10000;
+
+  // Conservative weekly safety clamp: max ±45 days/week and ±0.008 bio-yr/yr per weekly issue
+  const newPulse: LevWeeklyPulse = {
+    id: input.id || `pulse-${input.weekOf}`,
+    weekOf: input.weekOf,
+    issueLabel:
+      input.issueLabel || `Weekly Longevity Pulse • Week of ${input.weekOf}`,
+    newsletterTitle: input.newsletterTitle,
+    newsletterUrl:
+      input.newsletterUrl || "https://www.levlhealth.com/LEVTrajectory/",
+    authorOrSource: input.authorOrSource || "LEVL Weekly Longevity Dispatch",
+    predictionMarketsSummary: input.predictionMarketsSummary,
+    expertConsensusSummary: input.expertConsensusSummary,
+    breakthroughsSummary: input.breakthroughsSummary,
+    breakthroughs,
+    netWeeklyDelta: {
+      days99thLevShift: Math.max(-45, Math.min(45, computedDays99th)),
+      days80thLevShift: Math.max(-45, Math.min(45, computedDays80th)),
+      poa99thShift: Math.max(-0.008, Math.min(0.008, computedPoA99th)),
+      poa80thShift: Math.max(-0.008, Math.min(0.008, computedPoA80th)),
+    },
+  };
+
+  const existingIdx = pulses.findIndex((p) => p.id === newPulse.id || p.weekOf === newPulse.weekOf);
+  if (existingIdx >= 0) {
+    pulses[existingIdx] = newPulse;
+  } else {
+    pulses.unshift(newPulse);
+  }
+  return newPulse;
+}
 
 export type ConservativeUpdateMode = "conservative" | "moderate";
 
@@ -103,6 +196,10 @@ export interface LevDashboardComputation {
   };
   /** Year-by-year trajectory series (2026 -> 2060) */
   trajectorySeries: LevTrajectoryPoint[];
+  /** Latest Weekly Newsletter Pulse & Breakthrough summary */
+  latestWeeklyPulse: LevWeeklyPulse;
+  /** Historical Weekly Newsletter Pulses (reverse chronological) */
+  weeklyPulses: LevWeeklyPulse[];
   levlReference: typeof LEVL_TRAJECTORY_REFERENCE;
 }
 
@@ -284,12 +381,33 @@ export function computeLevDashboard(options?: {
   const trajectoryIntercept80thYear = findInterceptYear("p80");
   const trajectoryIntercept50thYear = findInterceptYear("p50");
 
-  // 4. Combined Weighted Aggregate Dates
+  // 4. Combined Weighted Aggregate Dates (+ dynamic post-seed weekly pulse shifts)
+  const weeklyPulses = getLevWeeklyPulses();
+  const seedIds = new Set(LEV_WEEKLY_PULSES.map((p) => p.id));
+  const dynamicPulses = weeklyPulses.filter((p) => !seedIds.has(p.id));
+  const dynamicYears99thShift = dynamicPulses.reduce(
+    (acc, p) => acc + p.netWeeklyDelta.days99thLevShift / 365.25,
+    0
+  );
+  const dynamicYears80thShift = dynamicPulses.reduce(
+    (acc, p) => acc + p.netWeeklyDelta.days80thLevShift / 365.25,
+    0
+  );
+  const dynamicPoA99thShift = dynamicPulses.reduce(
+    (acc, p) => acc + p.netWeeklyDelta.poa99thShift,
+    0
+  );
+  const dynamicPoA80thShift = dynamicPulses.reduce(
+    (acc, p) => acc + p.netWeeklyDelta.poa80thShift,
+    0
+  );
+
   const aggregate99thYear =
     Math.round(
       (marketAggregate99thYear * weights.marketsWeight +
         expertAggregate99thYear * weights.expertsWeight +
-        trajectoryIntercept99thYear * weights.trajectoryWeight) *
+        trajectoryIntercept99thYear * weights.trajectoryWeight +
+        dynamicYears99thShift) *
         10
     ) / 10;
 
@@ -297,7 +415,8 @@ export function computeLevDashboard(options?: {
     Math.round(
       (marketAggregate80thYear * weights.marketsWeight +
         expertAggregate80thYear * weights.expertsWeight +
-        trajectoryIntercept80thYear * weights.trajectoryWeight) *
+        trajectoryIntercept80thYear * weights.trajectoryWeight +
+        dynamicYears80thShift) *
         10
     ) / 10;
 
@@ -305,7 +424,8 @@ export function computeLevDashboard(options?: {
     Math.round(
       (marketAggregate50thYear * weights.marketsWeight +
         expertAggregate50thYear * weights.expertsWeight +
-        trajectoryIntercept50thYear * weights.trajectoryWeight) *
+        trajectoryIntercept50thYear * weights.trajectoryWeight +
+        dynamicYears80thShift * 0.5) *
         10
     ) / 10;
 
@@ -315,7 +435,16 @@ export function computeLevDashboard(options?: {
     interceptYr: number
   ): CohortLivePaceMetrics => {
     const profile = COHORT_PACE_PROFILES[cohortId];
-    const intrinsic = computeIntrinsicPoAAtYear(decimalYearNow, cohortId, updateMode);
+    const extraPoAShift =
+      cohortId === "p99"
+        ? dynamicPoA99thShift
+        : cohortId === "p80"
+        ? dynamicPoA80thShift
+        : 0;
+    const intrinsic = Math.max(
+      0.35,
+      computeIntrinsicPoAAtYear(decimalYearNow, cohortId, updateMode) + extraPoAShift
+    );
     const offset = computeBiotechRejuvenationOffsetAtYear(
       decimalYearNow,
       cohortId,
@@ -457,6 +586,8 @@ export function computeLevDashboard(options?: {
     },
     cohorts,
     trajectorySeries,
+    latestWeeklyPulse: weeklyPulses[0],
+    weeklyPulses,
     levlReference: LEVL_TRAJECTORY_REFERENCE,
   };
 }

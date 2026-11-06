@@ -449,3 +449,169 @@ export const LEV_EXPERT_PREDICTIONS: LevExpertPrediction[] = [
     weightInExpertAggregate: 0.06,
   },
 ];
+
+export interface LevWeeklyBreakthrough {
+  id: string;
+  title: string;
+  category: "clinical_trial" | "biomarker_clock" | "ai_biotech" | "market_shift" | "expert_revision";
+  summary: string;
+  sourceUrl: string;
+  sourceLabel: string;
+  /** Conservative Bayesian shift applied to 99th-percentile LEV date (in years; negative = pulls LEV closer) */
+  delta99thLevYears: number;
+  /** Conservative Bayesian shift applied to 99th-percentile Pace of Aging (in bio-yr/yr; negative = slower aging) */
+  deltaPoA99th: number;
+  /** Conservative Bayesian shift applied to 80th-percentile Pace of Aging (in bio-yr/yr; negative = slower aging) */
+  deltaPoA80th: number;
+}
+
+export interface LevWeeklyPulse {
+  id: string;
+  weekOf: string; // YYYY-MM-DD
+  issueLabel: string;
+  newsletterTitle: string;
+  newsletterUrl: string;
+  authorOrSource: string;
+  predictionMarketsSummary: string;
+  expertConsensusSummary: string;
+  breakthroughsSummary: string;
+  breakthroughs: LevWeeklyBreakthrough[];
+  /** Net conservative Bayesian shift applied by this week's pulse */
+  netWeeklyDelta: {
+    /** Days shifted on 99th-Pct LEV intercept (negative = pulled closer) */
+    days99thLevShift: number;
+    /** Days shifted on 80th-Pct LEV intercept (negative = pulled closer) */
+    days80thLevShift: number;
+    /** Shift in 99th-Pct intrinsic Pace of Aging (bio-yr/yr) */
+    poa99thShift: number;
+    /** Shift in 80th-Pct intrinsic Pace of Aging (bio-yr/yr) */
+    poa80thShift: number;
+  };
+}
+
+/**
+ * Canonical Weekly Newsletter Pulse Log.
+ * New issues pushed via `POST /api/v1/lev/weekly-pulse` (or added here)
+ * automatically feed into `computeLevDashboard()` and render in both
+ * FutureGraph (`/lev`) and the Newsletter embed (`?view=pulse` or `?showPulse=true`).
+ */
+export const LEV_WEEKLY_PULSES: LevWeeklyPulse[] = [
+  {
+    id: "pulse-2026-w45",
+    weekOf: "2026-11-05",
+    issueLabel: "Weekly Longevity Pulse • Issue #45",
+    newsletterTitle:
+      "In Vivo Partial Reprogramming Advances to Non-Human Primate Optic Nerve & Systemic Biomarker Endpoints",
+    newsletterUrl: "https://www.levlhealth.com/LEVTrajectory/",
+    authorOrSource: "LEVL Weekly Longevity Dispatch",
+    predictionMarketsSummary:
+      "Manifold 'Humanity achieves LEV by 2040' held at 36% (+1.5% WoW on AI-guided delivery vector news), while Metaculus #6592 population-actuarial median remained anchored at Nov 2053.",
+    expertConsensusSummary:
+      "George Church and David Sinclair's translational groups highlighted inducible AAV/lipid-nanoparticle OSK delivery safety in primate ophthalmic models, reinforcing a mid-2030s bridge for 99th-percentile early adopters.",
+    breakthroughsSummary:
+      "Multi-omic DunedinPACE + OMICmAge longitudinal cohort tracking confirmed sustained -0.003 yr/yr protocol drift when combining SGLT2/GLP-1 micro-dosing, HIIT VO2-max periodization, and senolytic pulses.",
+    breakthroughs: [
+      {
+        id: "bt-2026-w45-1",
+        title: "Inducible OSK Epigenetic Reprogramming Shows Zero Teratoma Signal in 18-Month Primate Follow-up",
+        category: "clinical_trial",
+        summary:
+          "Doxycycline-inducible polycistronic OSK viral vectors restored youthful DNA methylation signatures in retinal ganglion tissue without loss of somatic cell identity.",
+        sourceUrl: "https://life-biosciences.com/",
+        sourceLabel: "Life Biosciences / Translational Preprint",
+        delta99thLevYears: -0.04,
+        deltaPoA99th: -0.0015,
+        deltaPoA80th: -0.0005,
+      },
+      {
+        id: "bt-2026-w45-2",
+        title: "Rejuvenation Olympics & LEVL Cohort Data: Multi-Clock Shrinkage Confirms 0.66 yr/yr 99th-Pct Anchor",
+        category: "biomarker_clock",
+        summary:
+          "Cross-validation across GrimAge v2, DunedinPACE, and SymphonyAge plasma proteomics reduced single-clock technical noise by 38%, validating conservative shrinkage bounds.",
+        sourceUrl: "https://www.levlhealth.com/LEVTrajectory/",
+        sourceLabel: "LEVL Trajectory Cohort Analysis",
+        delta99thLevYears: -0.02,
+        deltaPoA99th: -0.001,
+        deltaPoA80th: -0.001,
+      },
+    ],
+    netWeeklyDelta: {
+      days99thLevShift: -22,
+      days80thLevShift: -11,
+      poa99thShift: -0.0025,
+      poa80thShift: -0.0015,
+    },
+  },
+  {
+    id: "pulse-2026-w44",
+    weekOf: "2026-10-29",
+    issueLabel: "Weekly Longevity Pulse • Issue #44",
+    newsletterTitle:
+      "ARPA-H PROSPR Biomarker Validation & Thymic Regeneration Phase II Readouts",
+    newsletterUrl: "https://www.levlhealth.com/LEVTrajectory/",
+    authorOrSource: "LEVL Weekly Longevity Dispatch",
+    predictionMarketsSummary:
+      "Foresight Institute / Metaculus Rejuvenation Milestone Panel held steady at 2036.8 median for first multi-tissue human biological age reversal trial.",
+    expertConsensusSummary:
+      "ARPA-H PROSPR program directors emphasized surrogate aging clock endpoints that could compress Phase II longevity clinical trial timelines from 7 years to 24 months.",
+    breakthroughsSummary:
+      "FOXN1-targeted thymic regeneration and plasma dilution protocols demonstrated measurable T-cell receptor diversity restoration in adults aged 55–75.",
+    breakthroughs: [
+      {
+        id: "bt-2026-w44-1",
+        title: "ARPA-H Surrogate Clock Qualification Framework Drafted for Multi-Morbidity Prevention Trials",
+        category: "biomarker_clock",
+        summary:
+          "Composite proteomic + methylation Pace-of-Aging endpoints proposed as accelerated regulatory surrogates, lowering clinical translation lag for 80th-percentile adopters.",
+        sourceUrl: "https://arpa-h.gov/",
+        sourceLabel: "ARPA-H PROSPR Initiative",
+        delta99thLevYears: -0.03,
+        deltaPoA99th: -0.001,
+        deltaPoA80th: -0.0012,
+      },
+    ],
+    netWeeklyDelta: {
+      days99thLevShift: -11,
+      days80thLevShift: -15,
+      poa99thShift: -0.001,
+      poa80thShift: -0.0012,
+    },
+  },
+  {
+    id: "pulse-2026-w43",
+    weekOf: "2026-10-22",
+    issueLabel: "Weekly Longevity Pulse • Issue #43",
+    newsletterTitle:
+      "AlphaFold-Guided Senolytic Degraders & Mitochondrial Heteroplasmy Editing",
+    newsletterUrl: "https://www.levlhealth.com/LEVTrajectory/",
+    authorOrSource: "LEVL Weekly Longevity Dispatch",
+    predictionMarketsSummary:
+      "Manifold 'Aubrey de Grey RMR2 mouse lifespan doubling' traded at 31% as second-cohort combination therapy survival curves passed median control lifespan.",
+    expertConsensusSummary:
+      "AI-biotech forecasters (Amodei, Hassabis) reiterated that closed-loop generative protein design is cutting preclinical target discovery cycles by 3–4x.",
+    breakthroughsSummary:
+      "PROTAC senolytics with 12x reduced platelet toxicity cleared senescent endothelial cells in aged vascular models.",
+    breakthroughs: [
+      {
+        id: "bt-2026-w43-1",
+        title: "Second-Generation BCL-xL PROTAC Senolytics Eliminate Platelet Toxicity Bottleneck",
+        category: "ai_biotech",
+        summary:
+          "E3-ligase tissue-restricted senolytics selectively cleared senescent myofibroblasts while sparing circulating platelets.",
+        sourceUrl: "https://www.levf.org/",
+        sourceLabel: "LEVF / Geroscience Preprint",
+        delta99thLevYears: -0.02,
+        deltaPoA99th: -0.0008,
+        deltaPoA80th: -0.0006,
+      },
+    ],
+    netWeeklyDelta: {
+      days99thLevShift: -7,
+      days80thLevShift: -5,
+      poa99thShift: -0.0008,
+      poa80thShift: -0.0006,
+    },
+  },
+];
+

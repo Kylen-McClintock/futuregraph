@@ -34,9 +34,11 @@ import {
 export interface LevExplorerProps {
   isEmbed?: boolean;
   initialTheme?: "dark" | "light";
-  initialView?: "all" | "pace" | "markets";
+  initialView?: "all" | "hero" | "pace" | "markets" | "pulse";
   initialAge?: number;
   initialMode?: ConservativeUpdateMode;
+  initialDetail?: "full" | "minimal";
+  initialShowPulse?: boolean;
 }
 
 export function LevExplorer({
@@ -45,9 +47,13 @@ export function LevExplorer({
   initialView = "all",
   initialAge = 35,
   initialMode = "conservative",
+  initialDetail = "full",
+  initialShowPulse = false,
 }: LevExplorerProps) {
   const [updateMode, setUpdateMode] = useState<ConservativeUpdateMode>(initialMode);
   const [currentAge, setCurrentAge] = useState<number>(initialAge);
+  const [selectedPulseIdx, setSelectedPulseIdx] = useState<number>(0);
+  const isMinimal = initialDetail === "minimal";
   const [chartTab, setChartTab] = useState<"velocity" | "alive_healthy" | "speedometer">(
     "velocity"
   );
@@ -345,7 +351,8 @@ export function LevExplorer({
         isEmbed ? "max-w-[1140px] px-3 py-4" : "max-w-[1520px] px-4 py-7"
       } space-y-6`}
     >
-      {/* Top Hero Banner */}
+      {/* Top Hero Banner (Hidden only when embedding standalone pulse view) */}
+      {initialView !== "pulse" && (
       <header className="rounded-2xl border border-emerald-500/35 bg-gradient-to-br from-slate-900/95 via-slate-900/85 to-emerald-950/30 p-5 sm:p-6 space-y-5 shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -357,6 +364,14 @@ export function LevExplorer({
               <Clock className="h-3 w-3" aria-hidden="true" />
               <span>Conservative Bayesian Update: {dashboard.asOfDateFormatted}</span>
             </span>
+            {dashboard.latestWeeklyPulse && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 border border-violet-500/35 px-2.5 py-1 text-[11px] font-mono font-semibold text-violet-300 tabular-nums">
+                <span>
+                  This Week: {dashboard.latestWeeklyPulse.netWeeklyDelta.days99thLevShift}d LEV shift •{" "}
+                  {dashboard.latestWeeklyPulse.netWeeklyDelta.poa99thShift} yr/yr PoA
+                </span>
+              </span>
+            )}
           </div>
 
           <a
@@ -372,7 +387,7 @@ export function LevExplorer({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
           {/* Primary Headline: 99th Percentile Human LEV Aggregate Date */}
-          <div className="lg:col-span-5 rounded-2xl border-2 border-emerald-500/50 bg-slate-950/85 p-5 flex flex-col justify-between space-y-4">
+          <div className={`${isMinimal ? "lg:col-span-6" : "lg:col-span-5"} rounded-2xl border-2 border-emerald-500/50 bg-slate-950/85 p-5 flex flex-col justify-between space-y-4`}>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-300">
@@ -441,37 +456,39 @@ export function LevExplorer({
                   {dashboard.cone99th.p75Formatted}
                 </span>
               </div>
-              <div className="grid grid-cols-4 gap-1.5 text-[11px] font-mono tabular-nums">
-                <div className="rounded bg-slate-950 px-2 py-1 border border-slate-800/80">
-                  <span className="text-slate-400 block text-[9px]">P10 (Fast AI)</span>
-                  <span className="text-emerald-300 font-bold">
-                    {dashboard.cone99th.p10Year}
-                  </span>
+              {!isMinimal && (
+                <div className="grid grid-cols-4 gap-1.5 text-[11px] font-mono tabular-nums">
+                  <div className="rounded bg-slate-950 px-2 py-1 border border-slate-800/80">
+                    <span className="text-slate-400 block text-[9px]">P10 (Fast AI)</span>
+                    <span className="text-emerald-300 font-bold">
+                      {dashboard.cone99th.p10Year}
+                    </span>
+                  </div>
+                  <div className="rounded bg-slate-950 px-2 py-1 border border-emerald-500/40">
+                    <span className="text-slate-400 block text-[9px]">P50 Median</span>
+                    <span className="text-white font-bold">
+                      {dashboard.cone99th.p50Year}
+                    </span>
+                  </div>
+                  <div className="rounded bg-slate-950 px-2 py-1 border border-slate-800/80">
+                    <span className="text-slate-400 block text-[9px]">P90 (Slow)</span>
+                    <span className="text-amber-300 font-bold">
+                      {dashboard.cone99th.p90Year}
+                    </span>
+                  </div>
+                  <div className="rounded bg-slate-950 px-2 py-1 border border-slate-800/80">
+                    <span className="text-slate-400 block text-[9px]">P99 Tail Bound</span>
+                    <span className="text-sky-300 font-bold">
+                      {dashboard.cone99th.p99TailConfidenceYear}
+                    </span>
+                  </div>
                 </div>
-                <div className="rounded bg-slate-950 px-2 py-1 border border-emerald-500/40">
-                  <span className="text-slate-400 block text-[9px]">P50 Median</span>
-                  <span className="text-white font-bold">
-                    {dashboard.cone99th.p50Year}
-                  </span>
-                </div>
-                <div className="rounded bg-slate-950 px-2 py-1 border border-slate-800/80">
-                  <span className="text-slate-400 block text-[9px]">P90 (Slow)</span>
-                  <span className="text-amber-300 font-bold">
-                    {dashboard.cone99th.p90Year}
-                  </span>
-                </div>
-                <div className="rounded bg-slate-950 px-2 py-1 border border-slate-800/80">
-                  <span className="text-slate-400 block text-[9px]">P99 Tail Bound</span>
-                  <span className="text-sky-300 font-bold">
-                    {dashboard.cone99th.p99TailConfidenceYear}
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
-          {/* Right 7 Columns: Live Conservative Pace of Aging Cards (99th vs 80th vs 50th Percentile) */}
-          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          {/* Right Columns: Live Conservative Pace of Aging Cards (99th vs 80th vs optional 50th Percentile) */}
+          <div className={`${isMinimal ? "lg:col-span-6 grid grid-cols-1 sm:grid-cols-2" : "lg:col-span-7 grid grid-cols-1 sm:grid-cols-3"} gap-3.5`}>
             {/* Card 1: 99th Percentile Pace of Aging */}
             <div className="fg-card-size-container">
               <article className="h-full rounded-2xl border border-emerald-500/45 bg-slate-950/80 p-4 flex flex-col justify-between space-y-3">
@@ -509,36 +526,38 @@ export function LevExplorer({
                     </strong>{" "}
                     of healthy runway today.
                   </p>
-                  <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 text-[11px] space-y-1 font-mono tabular-nums">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Raw Leaderboard Ref:</span>
-                      <span className="text-slate-300">~0.56 yr/yr</span>
+                  {!isMinimal && (
+                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 text-[11px] space-y-1 font-mono tabular-nums">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Raw Leaderboard Ref:</span>
+                        <span className="text-slate-300">~0.56 yr/yr</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Conservative Shrinkage:</span>
+                        <span className="text-emerald-300 font-bold">
+                          {dashboard.cohorts.p99.intrinsicPaceOfAging.toFixed(3)} yr/yr
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Annual Protocol Drift:</span>
+                        <span className="text-emerald-300">
+                          -{dashboard.cohorts.p99.annualConservativeDrift.toFixed(3)}/yr
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t border-slate-800">
+                        <span className="text-slate-300 font-bold">LEV Intercept:</span>
+                        <span className="text-emerald-400 font-bold">
+                          {dashboard.aggregate99thFormatted}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Conservative Shrinkage:</span>
-                      <span className="text-emerald-300 font-bold">
-                        {dashboard.cohorts.p99.intrinsicPaceOfAging.toFixed(3)} yr/yr
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Annual Protocol Drift:</span>
-                      <span className="text-emerald-300">
-                        -{dashboard.cohorts.p99.annualConservativeDrift.toFixed(3)}/yr
-                      </span>
-                    </div>
-                    <div className="flex justify-between pt-1 border-t border-slate-800">
-                      <span className="text-slate-300 font-bold">LEV Intercept:</span>
-                      <span className="text-emerald-400 font-bold">
-                        {dashboard.aggregate99thFormatted}
-                      </span>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 <footer className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/70">
-                  <span>Bio-Age at LEV (Age {currentAge}):</span>
+                  <span>{isMinimal ? "LEV Intercept:" : `Bio-Age at LEV (Age ${currentAge}):`}</span>
                   <strong className="font-mono text-emerald-300 tabular-nums">
-                    ~{dashboard.cohorts.p99.biologicalAgeAtLev} yrs
+                    {isMinimal ? dashboard.aggregate99thFormatted : `~${dashboard.cohorts.p99.biologicalAgeAtLev} yrs`}
                   </strong>
                 </footer>
               </article>
@@ -581,117 +600,294 @@ export function LevExplorer({
                     </strong>{" "}
                     of healthy runway today.
                   </p>
-                  <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 text-[11px] space-y-1 font-mono tabular-nums">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">DunedinPACE Z=-0.84:</span>
-                      <span className="text-slate-300">~0.81–0.88 yr/yr</span>
+                  {!isMinimal && (
+                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 text-[11px] space-y-1 font-mono tabular-nums">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">DunedinPACE Z=-0.84:</span>
+                        <span className="text-slate-300">~0.81–0.88 yr/yr</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Conservative Estimate:</span>
+                        <span className="text-sky-300 font-bold">
+                          {dashboard.cohorts.p80.intrinsicPaceOfAging.toFixed(3)} yr/yr
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Annual Protocol Drift:</span>
+                        <span className="text-sky-300">
+                          -{dashboard.cohorts.p80.annualConservativeDrift.toFixed(3)}/yr
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t border-slate-800">
+                        <span className="text-slate-300 font-bold">LEV Intercept:</span>
+                        <span className="text-sky-400 font-bold">
+                          {dashboard.aggregate80thFormatted}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Conservative Estimate:</span>
-                      <span className="text-sky-300 font-bold">
-                        {dashboard.cohorts.p80.intrinsicPaceOfAging.toFixed(3)} yr/yr
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Annual Protocol Drift:</span>
-                      <span className="text-sky-300">
-                        -{dashboard.cohorts.p80.annualConservativeDrift.toFixed(3)}/yr
-                      </span>
-                    </div>
-                    <div className="flex justify-between pt-1 border-t border-slate-800">
-                      <span className="text-slate-300 font-bold">LEV Intercept:</span>
-                      <span className="text-sky-400 font-bold">
-                        {dashboard.aggregate80thFormatted}
-                      </span>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 <footer className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/70">
-                  <span>Bio-Age at LEV (Age {currentAge}):</span>
+                  <span>{isMinimal ? "LEV Intercept:" : `Bio-Age at LEV (Age ${currentAge}):`}</span>
                   <strong className="font-mono text-sky-300 tabular-nums">
-                    ~{dashboard.cohorts.p80.biologicalAgeAtLev} yrs
+                    {isMinimal ? dashboard.aggregate80thFormatted : `~${dashboard.cohorts.p80.biologicalAgeAtLev} yrs`}
                   </strong>
                 </footer>
               </article>
             </div>
 
-            {/* Card 3: 50th Percentile Status Quo Baseline */}
-            <div className="fg-card-size-container">
-              <article className="h-full rounded-2xl border border-amber-500/35 border-dashed bg-slate-950/80 p-4 flex flex-col justify-between space-y-3">
-                <header className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-mono font-bold uppercase text-amber-300">
-                      50th Percentile
-                    </span>
-                    <span className="text-[11px] font-mono text-amber-300 font-bold">
-                      Status Quo
-                    </span>
-                  </div>
-                  <h2 className="text-sm font-bold text-white">
-                    Population Mean (Status Quo)
-                  </h2>
-                </header>
-
-                <div className="space-y-2">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl sm:text-4xl font-mono font-extrabold text-amber-400 tabular-nums">
-                      {dashboard.cohorts.p50.intrinsicPaceOfAging.toFixed(2)}
-                    </span>
-                    <span className="text-xs font-mono text-slate-300">
-                      bio-yrs / yr
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-300">
-                    Ages{" "}
-                    <strong className="text-white tabular-nums">
-                      12.0 bio-months
-                    </strong>{" "}
-                    per 12 calendar months — standard population actuarial curve
-                    tracked by Metaculus #6592.
-                  </p>
-                  <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 text-[11px] space-y-1 font-mono tabular-nums">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Population Mean (μ):</span>
-                      <span className="text-slate-300">1.000 yr/yr (SD 0.10)</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Metaculus #6592 Med:</span>
-                      <span className="text-amber-300 font-bold">Nov 2053</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Lag Behind 99th Pct:</span>
-                      <span className="text-amber-300">
-                        +
-                        {(
-                          dashboard.aggregate50thYear - dashboard.aggregate99thYear
-                        ).toFixed(1)}{" "}
-                        yrs
+            {/* Card 3: 50th Percentile Status Quo Baseline (Hidden in minimal detail mode) */}
+            {!isMinimal && (
+              <div className="fg-card-size-container">
+                <article className="h-full rounded-2xl border border-amber-500/35 border-dashed bg-slate-950/80 p-4 flex flex-col justify-between space-y-3">
+                  <header className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-mono font-bold uppercase text-amber-300">
+                        50th Percentile
+                      </span>
+                      <span className="text-[11px] font-mono text-amber-300 font-bold">
+                        Status Quo
                       </span>
                     </div>
-                    <div className="flex justify-between pt-1 border-t border-slate-800">
-                      <span className="text-slate-300 font-bold">LEV Intercept:</span>
-                      <span className="text-amber-400 font-bold">
-                        {dashboard.aggregate50thFormatted}
+                    <h2 className="text-sm font-bold text-white">
+                      Population Mean (Status Quo)
+                    </h2>
+                  </header>
+
+                  <div className="space-y-2">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl sm:text-4xl font-mono font-extrabold text-amber-400 tabular-nums">
+                        {dashboard.cohorts.p50.intrinsicPaceOfAging.toFixed(2)}
+                      </span>
+                      <span className="text-xs font-mono text-slate-300">
+                        bio-yrs / yr
                       </span>
                     </div>
+                    <p className="text-xs text-slate-300">
+                      Ages{" "}
+                      <strong className="text-white tabular-nums">
+                        12.0 bio-months
+                      </strong>{" "}
+                      per 12 calendar months — standard population actuarial curve
+                      tracked by Metaculus #6592.
+                    </p>
+                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 text-[11px] space-y-1 font-mono tabular-nums">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Population Mean (μ):</span>
+                        <span className="text-slate-300">1.000 yr/yr (SD 0.10)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Metaculus #6592 Med:</span>
+                        <span className="text-amber-300 font-bold">Nov 2053</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Lag Behind 99th Pct:</span>
+                        <span className="text-amber-300">
+                          +
+                          {(
+                            dashboard.aggregate50thYear - dashboard.aggregate99thYear
+                          ).toFixed(1)}{" "}
+                          yrs
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t border-slate-800">
+                        <span className="text-slate-300 font-bold">LEV Intercept:</span>
+                        <span className="text-amber-400 font-bold">
+                          {dashboard.aggregate50thFormatted}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <footer className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/70">
-                  <span>Bio-Age at LEV (Age {currentAge}):</span>
-                  <strong className="font-mono text-amber-300 tabular-nums">
-                    ~{dashboard.cohorts.p50.biologicalAgeAtLev} yrs
-                  </strong>
-                </footer>
-              </article>
-            </div>
+                  <footer className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/70">
+                    <span>Bio-Age at LEV (Age {currentAge}):</span>
+                    <strong className="font-mono text-amber-300 tabular-nums">
+                      ~{dashboard.cohorts.p50.biologicalAgeAtLev} yrs
+                    </strong>
+                  </footer>
+                </article>
+              </div>
+            )}
           </div>
         </div>
       </header>
+      )}
+
+      {/* BI-DIRECTIONAL WEEKLY NEWSLETTER PULSE & BREAKTHROUGH FEED */}
+      {(initialView === "all" || initialView === "pulse" || initialShowPulse) &&
+        dashboard.weeklyPulses.length > 0 && (() => {
+          const activePulse =
+            dashboard.weeklyPulses[
+              Math.min(selectedPulseIdx, dashboard.weeklyPulses.length - 1)
+            ] || dashboard.latestWeeklyPulse;
+          return (
+            <section
+              aria-labelledby="lev-weekly-pulse-heading"
+              className="rounded-2xl border border-violet-500/35 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-violet-950/25 p-5 sm:p-6 space-y-4 shadow-lg"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/20 border border-violet-500/40 px-3 py-0.5 text-[11px] font-mono font-bold uppercase text-violet-300">
+                      <Sparkles className="h-3 w-3" aria-hidden="true" />
+                      <span>Two-Way Weekly Newsletter × FutureGraph Sync</span>
+                    </span>
+                    <span className="text-xs font-mono text-slate-400 tabular-nums">
+                      {activePulse.issueLabel} ({activePulse.weekOf})
+                    </span>
+                  </div>
+                  <h2
+                    id="lev-weekly-pulse-heading"
+                    className="text-lg sm:text-xl font-extrabold text-white"
+                  >
+                    {activePulse.newsletterTitle}
+                  </h2>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Issue selector */}
+                  <div className="flex items-center gap-1 rounded-xl bg-slate-950/90 p-1 border border-slate-800">
+                    {dashboard.weeklyPulses.slice(0, 4).map((p, idx) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setSelectedPulseIdx(idx)}
+                        className={`rounded-lg px-2.5 py-1 text-[11px] font-mono font-semibold transition-colors ${
+                          selectedPulseIdx === idx
+                            ? "bg-violet-500/25 text-violet-300 border border-violet-500/40"
+                            : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        {p.weekOf}
+                      </button>
+                    ))}
+                  </div>
+
+                  <a
+                    href={activePulse.newsletterUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded-xl border border-violet-500/40 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-violet-500/25"
+                  >
+                    <span>Read Issue</span>
+                    <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Net Weekly Bayesian Impact Banner */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="rounded-xl bg-slate-950/85 border border-emerald-500/30 p-3">
+                  <div className="text-[10px] font-mono uppercase text-slate-400">
+                    99th-Pct LEV Weekly Shift
+                  </div>
+                  <div className="text-base font-mono font-extrabold text-emerald-300 tabular-nums">
+                    {activePulse.netWeeklyDelta.days99thLevShift > 0 ? "+" : ""}
+                    {activePulse.netWeeklyDelta.days99thLevShift} days
+                  </div>
+                </div>
+                <div className="rounded-xl bg-slate-950/85 border border-sky-500/30 p-3">
+                  <div className="text-[10px] font-mono uppercase text-slate-400">
+                    80th-Pct LEV Weekly Shift
+                  </div>
+                  <div className="text-base font-mono font-extrabold text-sky-300 tabular-nums">
+                    {activePulse.netWeeklyDelta.days80thLevShift > 0 ? "+" : ""}
+                    {activePulse.netWeeklyDelta.days80thLevShift} days
+                  </div>
+                </div>
+                <div className="rounded-xl bg-slate-950/85 border border-emerald-500/30 p-3">
+                  <div className="text-[10px] font-mono uppercase text-slate-400">
+                    99th-Pct PoA Weekly Delta
+                  </div>
+                  <div className="text-base font-mono font-extrabold text-emerald-300 tabular-nums">
+                    {activePulse.netWeeklyDelta.poa99thShift > 0 ? "+" : ""}
+                    {activePulse.netWeeklyDelta.poa99thShift} yr/yr
+                  </div>
+                </div>
+                <div className="rounded-xl bg-slate-950/85 border border-sky-500/30 p-3">
+                  <div className="text-[10px] font-mono uppercase text-slate-400">
+                    80th-Pct PoA Weekly Delta
+                  </div>
+                  <div className="text-base font-mono font-extrabold text-sky-300 tabular-nums">
+                    {activePulse.netWeeklyDelta.poa80thShift > 0 ? "+" : ""}
+                    {activePulse.netWeeklyDelta.poa80thShift} yr/yr
+                  </div>
+                </div>
+              </div>
+
+              {/* 3-Column Weekly Digest: Prediction Markets, Expert Consensus, Longevity Breakthroughs */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <article className="rounded-xl border border-slate-800 bg-slate-950/80 p-4 space-y-1.5">
+                  <div className="text-[11px] font-mono font-bold uppercase text-sky-300">
+                    1. Prediction Markets This Week
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {activePulse.predictionMarketsSummary}
+                  </p>
+                </article>
+
+                <article className="rounded-xl border border-slate-800 bg-slate-950/80 p-4 space-y-1.5">
+                  <div className="text-[11px] font-mono font-bold uppercase text-violet-300">
+                    2. Expert Consensus &amp; Clinical Shifts
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {activePulse.expertConsensusSummary}
+                  </p>
+                </article>
+
+                <article className="rounded-xl border border-slate-800 bg-slate-950/80 p-4 space-y-1.5">
+                  <div className="text-[11px] font-mono font-bold uppercase text-emerald-300">
+                    3. Longevity &amp; Biomarker Breakthroughs
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {activePulse.breakthroughsSummary}
+                  </p>
+                </article>
+              </div>
+
+              {/* Breakthrough items if not minimal */}
+              {!isMinimal && activePulse.breakthroughs.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                  {activePulse.breakthroughs.map((bt) => (
+                    <div
+                      key={bt.id}
+                      className="rounded-xl border border-slate-800/90 bg-slate-950/60 p-3.5 flex flex-col justify-between gap-2"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-white">
+                            {bt.title}
+                          </span>
+                          <span className="shrink-0 rounded bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-300 tabular-nums">
+                            {bt.delta99thLevYears} yr LEV • {bt.deltaPoA99th} PoA
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          {bt.summary}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                        <span>Category: {bt.category}</span>
+                        <a
+                          href={bt.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-300 hover:underline"
+                        >
+                          {bt.sourceLabel} ↗
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })()}
 
       {/* SECTION 1: Dynamically Updating Pace of Aging & LEVL Trajectory Graphic */}
-      {initialView !== "markets" && (
+      {initialView !== "markets" && initialView !== "hero" && initialView !== "pulse" && (
         <section
           aria-labelledby="lev-trajectory-heading"
           className="rounded-2xl border border-slate-800 bg-slate-900/75 p-5 sm:p-6 space-y-5"
@@ -1361,7 +1557,7 @@ export function LevExplorer({
       )}
 
       {/* SECTION 2: Prediction Markets & Forecasting Platforms */}
-      {initialView !== "pace" && (
+      {initialView !== "pace" && initialView !== "hero" && initialView !== "pulse" && (
         <section
           aria-labelledby="lev-markets-heading"
           className="rounded-2xl border border-slate-800 bg-slate-900/75 p-5 sm:p-6 space-y-4"
@@ -1505,7 +1701,7 @@ export function LevExplorer({
       )}
 
       {/* SECTION 3: Notable Expert Predictions & Visual Timeline Forest Plot */}
-      {initialView !== "pace" && (
+      {initialView !== "pace" && initialView !== "hero" && initialView !== "pulse" && (
         <section
           aria-labelledby="lev-experts-heading"
           className="rounded-2xl border border-slate-800 bg-slate-900/75 p-5 sm:p-6 space-y-5"

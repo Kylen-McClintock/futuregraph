@@ -899,6 +899,45 @@ describe("LEV 99th-Percentile Aggregate & Dynamic Pace of Aging Engine (LEVL Tra
     expect(res.trajectorySeries).toHaveLength(35);
     expect(res.trajectorySeries[0].year).toBe(2026);
     expect(res.trajectorySeries[res.trajectorySeries.length - 1].year).toBe(2060);
+    expect(res.latestWeeklyPulse).toBeDefined();
+    expect(res.weeklyPulses.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("supports bi-directional weekly newsletter pulse updates with conservative Bayesian bounds", async () => {
+    const { addLevWeeklyPulse, computeLevDashboard } = await import("@/lib/lev-engine");
+
+    const before = computeLevDashboard({
+      referenceDate: new Date("2026-11-05T12:00:00Z"),
+      updateMode: "conservative",
+    });
+
+    const pulse = addLevWeeklyPulse({
+      id: "pulse-2026-w46-test",
+      weekOf: "2026-11-12",
+      issueLabel: "Weekly Longevity Pulse • Issue #46",
+      newsletterTitle: "Phase II Senolytic + Partial Reprogramming Biomarker Readout",
+      predictionMarketsSummary: "Manifold 2040 market rose +3% to 39%.",
+      expertConsensusSummary: "Clinical trial endpoints validated faster surrogate clock readout.",
+      breakthroughsSummary: "Multi-tissue methylation clock reversal confirmed.",
+      netWeeklyDelta: {
+        days99thLevShift: -36,
+        days80thLevShift: -20,
+        poa99thShift: -0.004,
+        poa80thShift: -0.002,
+      },
+    });
+
+    expect(pulse.id).toBe("pulse-2026-w46-test");
+
+    const after = computeLevDashboard({
+      referenceDate: new Date("2026-11-05T12:00:00Z"),
+      updateMode: "conservative",
+    });
+
+    expect(after.latestWeeklyPulse.id).toBe("pulse-2026-w46-test");
+    expect(after.cohorts.p99.intrinsicPaceOfAging).toBeLessThanOrEqual(
+      before.cohorts.p99.intrinsicPaceOfAging
+    );
   });
 });
 

@@ -20,6 +20,8 @@ export default function LevEmbedPage({
     view?: string;
     age?: string;
     mode?: string;
+    detail?: string;
+    showPulse?: string;
   };
 }) {
   const theme =
@@ -29,7 +31,10 @@ export default function LevEmbedPage({
       ? "dark"
       : undefined;
   const view =
-    searchParams?.view === "pace" || searchParams?.view === "markets"
+    searchParams?.view === "hero" ||
+    searchParams?.view === "pace" ||
+    searchParams?.view === "markets" ||
+    searchParams?.view === "pulse"
       ? searchParams.view
       : "all";
   const ageNum = Number(searchParams?.age || "35");
@@ -38,6 +43,10 @@ export default function LevEmbedPage({
     : 35;
   const initialMode: ConservativeUpdateMode =
     searchParams?.mode === "moderate" ? "moderate" : "conservative";
+  const initialDetail =
+    searchParams?.detail === "minimal" ? "minimal" : "full";
+  const initialShowPulse =
+    searchParams?.showPulse === "true" || searchParams?.showPulse === "1";
 
   return (
     <LevExplorer
@@ -46,6 +55,8 @@ export default function LevEmbedPage({
       initialView={view}
       initialAge={initialAge}
       initialMode={initialMode}
+      initialDetail={initialDetail}
+      initialShowPulse={initialShowPulse}
     />
   );
 }
