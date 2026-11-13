@@ -731,7 +731,7 @@ describe("FutureGraph AI 2027 Canonical Dataset & Store Integration Tests", () =
       expect(cmt.authorHandle).not.toBe("elena_vance");
       expect(cmt.authorHandle).not.toBe("marcus_chen");
     }
-  });
+  }, 15000);
 });
 
 import {

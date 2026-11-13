@@ -182,8 +182,14 @@ export interface CohortLivePaceMetrics {
   label: string;
   shortLabel: string;
   percentileRank: number;
-  /** Conservative Bayesian-shrunk intrinsic Pace of Aging (DunedinPACE + multi-organ composite) at current timestamp */
+  /** Conservative Bayesian-shrunk intrinsic Pace of Aging (DunedinPACE + multi-organ composite) at current timestamp (50th percentile median) */
   intrinsicPaceOfAging: number;
+  /** 25th percentile (faster aging Reducer / lower bound of PoA uncertainty) */
+  poaP25: number;
+  /** 50th percentile median PoA prediction */
+  poaP50: number;
+  /** 75th percentile upper bound of PoA uncertainty */
+  poaP75: number;
   /** Raw unshrunk reference value (e.g. leaderboard raw epigenetic clock) */
   rawReferencePoA: number;
   /** Current annual biotech/therapeutic rejuvenation offset (yr/yr) */
@@ -258,6 +264,19 @@ export interface LevDashboardComputation {
     p90Formatted: string;
     p99TailConfidenceYear: number;
     p99TailConfidenceFormatted: string;
+  };
+  /** Cone of Uncertainty percentiles for the 80th-percentile (Top 20% PoA) human LEV date */
+  cone80th: {
+    p10Year: number;
+    p10Formatted: string;
+    p25Year: number;
+    p25Formatted: string;
+    p50Year: number;
+    p50Formatted: string;
+    p75Year: number;
+    p75Formatted: string;
+    p90Year: number;
+    p90Formatted: string;
   };
   /** Live dynamically updated Pace of Aging metrics for 99th, 80th, and 50th percentile persons */
   cohorts: {
@@ -539,12 +558,19 @@ export function computeLevDashboard(options?: {
     const biologicalAgeAtLev =
       Math.round((currentChronologicalAge + yearsToLev * avgNetPoAUntilLev) * 10) / 10;
 
+    const roundedIntrinsic = Math.round(intrinsic * 1000) / 1000;
+    const iqrHalfLower = cohortId === "p99" ? 0.045 : cohortId === "p80" ? 0.047 : 0.055;
+    const iqrHalfUpper = cohortId === "p99" ? 0.050 : cohortId === "p80" ? 0.053 : 0.060;
+
     return {
       cohortId,
       label: profile.label,
       shortLabel: profile.shortLabel,
       percentileRank: profile.percentileRank,
-      intrinsicPaceOfAging: Math.round(intrinsic * 1000) / 1000,
+      intrinsicPaceOfAging: roundedIntrinsic,
+      poaP25: Math.round((roundedIntrinsic - iqrHalfLower) * 1000) / 1000,
+      poaP50: roundedIntrinsic,
+      poaP75: Math.round((roundedIntrinsic + iqrHalfUpper) * 1000) / 1000,
       rawReferencePoA: profile.rawObservedReferencePoA,
       biotechRejuvenationOffset: Math.round(offset * 1000) / 1000,
       netEffectivePaceOfAging: netPoA,
@@ -624,13 +650,19 @@ export function computeLevDashboard(options?: {
     });
   }
 
-  // 7. Cone of Uncertainty percentiles for the 99th-Percentile Human LEV Date
+  // 7. Cone of Uncertainty percentiles for the 99th-Percentile and 80th-Percentile Human LEV Dates
   const p10Year = Math.round((aggregate99thYear - 6.3) * 10) / 10;
   const p25Year = Math.round((aggregate99thYear - 3.4) * 10) / 10;
   const p50Year = aggregate99thYear;
   const p75Year = Math.round((aggregate99thYear + 4.2) * 10) / 10;
   const p90Year = Math.round((aggregate99thYear + 8.6) * 10) / 10;
   const p99TailConfidenceYear = Math.round((aggregate99thYear + 21.4) * 10) / 10;
+
+  const p80_10Year = Math.round((aggregate80thYear - 6.8) * 10) / 10;
+  const p80_25Year = Math.round((aggregate80thYear - 3.8) * 10) / 10;
+  const p80_50Year = aggregate80thYear;
+  const p80_75Year = Math.round((aggregate80thYear + 4.7) * 10) / 10;
+  const p80_90Year = Math.round((aggregate80thYear + 9.6) * 10) / 10;
 
   return {
     asOfIso: now.toISOString(),
@@ -661,6 +693,18 @@ export function computeLevDashboard(options?: {
       p90Formatted: formatDecimalYear(p90Year, true),
       p99TailConfidenceYear,
       p99TailConfidenceFormatted: formatDecimalYear(p99TailConfidenceYear, true),
+    },
+    cone80th: {
+      p10Year: p80_10Year,
+      p10Formatted: formatDecimalYear(p80_10Year, true),
+      p25Year: p80_25Year,
+      p25Formatted: formatDecimalYear(p80_25Year, true),
+      p50Year: p80_50Year,
+      p50Formatted: formatDecimalYear(p80_50Year, true),
+      p75Year: p80_75Year,
+      p75Formatted: formatDecimalYear(p80_75Year, true),
+      p90Year: p80_90Year,
+      p90Formatted: formatDecimalYear(p80_90Year, true),
     },
     cohorts,
     trajectorySeries,

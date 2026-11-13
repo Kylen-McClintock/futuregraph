@@ -122,7 +122,7 @@ html.light [class*="to-fuchsia-950"] {
   ) !important;
 }
 
-html.light .text-white:not([style*="background-color"]):not([class*="bg-indigo-6"]):not([class*="bg-fuchsia-6"]):not([class*="bg-emerald-6"]):not([class*="bg-amber-6"]):not([class*="bg-sky-6"]):not(.keep-white),
+html.light .text-white:not([style*="background-color"]):not([class*="bg-indigo-6"]):not([class*="bg-fuchsia-6"]):not([class*="bg-emerald-6"]):not([class*="bg-amber-6"]):not([class*="bg-sky-6"]):not([class*="bg-cyan-6"]):not(.keep-white),
 html.light .text-slate-100,
 html.light .text-slate-200 {
   color: #0f172a !important;
@@ -186,6 +186,15 @@ html.light .text-rose-400 {
 html.light .text-violet-300,
 html.light .text-violet-400 {
   color: #6d28d9 !important;
+}
+
+html.light .text-cyan-300,
+html.light .text-cyan-400 {
+  color: #0e7490 !important;
+}
+
+.fg-copy-status:empty {
+  display: none;
 }
 
 html.light [class*="bg-amber-950"] {
@@ -253,6 +262,96 @@ dialog:modal {
 dialog::backdrop {
   background: rgba(5, 8, 17, 0.76);
   backdrop-filter: blur(6px);
+  /* Modern Web Guidance: prevent-page-scroll-under-modal-dialog — ::backdrop must be a
+     (non-scrollable) scroll container for overscroll-behavior to apply. */
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+/* Wider dialog variant for the share-card studio */
+dialog.fg-dialog-wide:modal {
+  max-width: min(94vw, 880px);
+  max-height: 92vh;
+}
+
+/* Modern Web Guidance: slider — Conviction wager slider (rose → amber → emerald) */
+input[type="range"].fg-wager-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  block-size: 1.75rem;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  --control-value: 33%;
+}
+
+input[type="range"].fg-wager-slider:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 4px;
+  border-radius: 9999px;
+}
+
+input[type="range"].fg-wager-slider::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    #38bdf8 0%,
+    #f59e0b calc(var(--control-value, 33%) * 0.6),
+    #f43f5e var(--control-value, 33%),
+    rgba(148, 163, 184, 0.25) var(--control-value, 33%),
+    rgba(148, 163, 184, 0.25) 100%
+  );
+}
+
+input[type="range"].fg-wager-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 9999px;
+  background: #f8fafc;
+  border: 3px solid #f59e0b;
+  margin-top: -0.4rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: transform 150ms ease;
+}
+
+input[type="range"].fg-wager-slider::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: rgba(148, 163, 184, 0.25);
+}
+
+input[type="range"].fg-wager-slider::-moz-range-progress {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #38bdf8, #f59e0b, #f43f5e);
+}
+
+input[type="range"].fg-wager-slider::-moz-range-thumb {
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 9999px;
+  background: #f8fafc;
+  border: 3px solid #f59e0b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fg-rp-bar {
+    transition: inline-size 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+/* Modern Web Guidance: copy-button — feedback bubble shown/hidden with opacity (stays in a11y tree) */
+.fg-copy-status {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.fg-copy-status:not(:empty) {
+  opacity: 1;
 }
 
 /* Modern Web Guidance: slider (separate WebKit & Firefox selector blocks!) */
@@ -592,5 +691,164 @@ html:active-view-transition-type(backward)::view-transition-new(present-stage) {
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   Mobile & Horizontal Full-Screen Enhancements
+   (Modern Web Guidance: form-factor-adaptation, navigation-drawer, slider)
+   ========================================================================== */
+
+/* Hide scrollbars on single-row horizontal mobile pill scrollers */
+.fg-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.fg-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Horizontal (Landscape) Full-Screen shell for portrait phones (works on iOS Safari & when OS Rotation Lock is ON) */
+.fg-mobile-landscape-shell {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 100dvh;
+  height: 100dvw;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+  padding-inline-start: env(safe-area-inset-top, 0px);
+  padding-inline-end: env(safe-area-inset-bottom, 0px);
+}
+
+/* Safe-area padding when phone is held in native OS landscape or portrait full-screen */
+.fg-safe-fullscreen {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+/* Prevent iOS Safari forced viewport zoom when focusing inputs/selects (<16px triggers auto-zoom) */
+@media (max-width: 639px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  dialog:modal:not(.fg-mobile-nav-drawer) {
+    max-width: 96dvw;
+    max-height: 92dvh;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* Coarse-pointer (touchscreen) range slider hit areas — keep WebKit & Firefox pseudo-selectors separate */
+@media (pointer: coarse) {
+  input[type="range"]:not(.fg-wager-slider) {
+    min-height: 2.25rem;
+    cursor: pointer;
+  }
+
+  input[type="range"]:not(.fg-wager-slider)::-webkit-slider-thumb {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  input[type="range"]:not(.fg-wager-slider)::-moz-range-thumb {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+}
+
+/* Modern Web Guidance: navigation-drawer — Native <dialog> + scroll-snap swipeable mobile drawer */
+dialog.fg-mobile-nav-drawer:modal {
+  --drawer-width: min(21rem, 84dvw, calc(100dvw - 24px));
+  --drawer-backdrop: 1;
+  inset: 0;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+dialog.fg-mobile-nav-drawer::backdrop {
+  background: rgba(5, 8, 17, 0.85);
+  backdrop-filter: blur(5px);
+  opacity: calc(var(--drawer-backdrop) * 0.9);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.fg-drawer-scroller {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--drawer-width) 100%;
+  overflow-x: scroll;
+  overscroll-behavior: none;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+}
+
+.fg-drawer-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fg-drawer-scroller {
+    scroll-behavior: smooth;
+  }
+}
+
+.fg-drawer-scroller::after {
+  content: "";
+  scroll-snap-align: end;
+  scroll-initial-target: nearest;
+}
+
+.fg-drawer-sheet {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100svh;
+  overflow-y: auto;
+  scroll-snap-align: start;
+  scrollbar-width: none;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@supports (animation-timeline: scroll()) {
+  @property --drawer-backdrop {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
+  }
+
+  @keyframes fg-fade-drawer-backdrop {
+    0% {
+      --drawer-backdrop: 1;
+    }
+    100% {
+      --drawer-backdrop: 0;
+    }
+  }
+
+  dialog.fg-mobile-nav-drawer:modal {
+    timeline-scope: --fg-drawer-fade;
+    animation: fg-fade-drawer-backdrop linear both;
+    animation-timeline: --fg-drawer-fade;
+  }
+
+  .fg-drawer-scroller {
+    scroll-timeline: --fg-drawer-fade x;
   }
 }

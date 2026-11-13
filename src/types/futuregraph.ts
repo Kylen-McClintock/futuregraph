@@ -54,6 +54,31 @@ export type ForecastLens =
   | "community"
   | "demo_hypothesis";
 
+/** The six scored accuracy domains (plus Overall, computed across all of them). */
+export type AccuracyCategory =
+  | "agi_capabilities"
+  | "ai_safety"
+  | "governance_geopolitics"
+  | "economy_society"
+  | "longevity_biotech"
+  | "science_frontier";
+
+/** Node-level scoring classification. Metaphysical / unfalsifiable nodes are never scored. */
+export type NodeScoringCategory = AccuracyCategory | "unscored_metaphysical";
+
+export type ForecasterTier =
+  | "provisional"
+  | "developing"
+  | "calibrated"
+  | "sharp"
+  | "superforecaster"
+  | "oracle";
+
+export type OracleProvider = "editorial" | "polymarket" | "metaculus";
+
+/** How the forecaster authenticated when locking in a forecast. */
+export type ForecastAuthProvider = "x" | "agifutures" | "demo" | "agent_api" | "legacy_seed";
+
 export interface Profile {
   id: string;
   handle: string;
@@ -64,6 +89,17 @@ export interface Profile {
   credentials?: string;
   avatarUrl?: string;
   joinedAt: string;
+  /** Supabase auth.users.id shared across AGIFutures.org and FutureGraph (SSO). */
+  authUserId?: string;
+  /** Verified X identity (proved via X OAuth 2.0, never self-typed). */
+  xUserId?: string;
+  xHandle?: string;
+  xAvatarUrl?: string;
+  xVerifiedAt?: string;
+  /** True when an AGIFutures.org (email / Google) identity is linked to this profile. */
+  agifuturesLinked?: boolean;
+  /** Sandbox / demo profile (never presented as a real person's verified record). */
+  isSandbox?: boolean;
   agentMetadata?: {
     provider: string;
     modelFamily: string;
@@ -115,6 +151,21 @@ export interface ForecastQuestionSpec {
   resolvedOutcome?: 0 | 1 | null;
   resolvedAt?: string | null;
   disputeStatus: "none" | "open_dispute" | "adjudicated";
+  /** When forecasting opened (used for anti-sniping horizon decay). Defaults to the node's authorAsOf date. */
+  openedAt?: string;
+  /** External resolution oracle configuration (Polymarket / Metaculus), with Editorial fallback. */
+  oracleProvider?: OracleProvider;
+  oracleExternalId?: string;
+  oracleUrl?: string;
+  /** For multi-outcome markets: the outcome label that maps to this node resolving YES. */
+  oracleOutcomeLabel?: string;
+  /** Latest crowd / market probability fetched from the oracle (used as consensus baseline). */
+  oracleLastPrice?: number | null;
+  oracleLastSyncedAt?: string | null;
+  resolutionEvidenceUrl?: string | null;
+  resolutionSourceLabel?: string | null;
+  /** Synthetic calibration drill used to demonstrate scoring (sandbox resolution, not a real-world event). */
+  isSandboxDrill?: boolean;
 }
 
 export interface FutureNode {
@@ -149,6 +200,8 @@ export interface FutureNode {
     publicApproval?: string;
   };
   question?: ForecastQuestionSpec;
+  /** Explicit accuracy category; otherwise derived by classifyNodeCategory(). */
+  accuracyCategory?: NodeScoringCategory;
 }
 
 export interface FutureEdge {
@@ -273,11 +326,26 @@ export interface ForecastEvent {
   prevChainHash?: string | null;
   chainHash: string;
   serverTimestamp: string;
+  /** Community / market consensus probability snapshotted at lock-in (sealed in the receipt). */
+  crowdProbSnapshot?: number | null;
+  /** Conviction wager multiplier in [0.25, 3.0] chosen on the confidence slider. */
+  confidenceMultiplier?: number;
+  /** Reputation preview shown to the forecaster before lock-in. */
+  projectedRpIfYes?: number | null;
+  projectedRpIfNo?: number | null;
+  accuracyCategory?: NodeScoringCategory;
+  authProvider?: ForecastAuthProvider;
 }
 
 export interface AuditReceipt {
   eventId: string;
-  entityType: "forecast_event" | "argument" | "branch_proposal" | "scenario_fork";
+  entityType:
+    | "forecast_event"
+    | "argument"
+    | "branch_proposal"
+    | "scenario_fork"
+    | "question_resolution"
+    | "worldview_snapshot";
   entityId: string;
   contributorId: string;
   contributorHandle: string;
@@ -459,3 +527,114 @@ export interface ScenarioDataset {
   policyInterventions: PolicyIntervention[];
 }
 
+
+// =============================================================================
+// REPUTATION, VERIFIED IDENTITY, WORLDVIEWS & RESOLUTION ORACLES
+// =============================================================================
+
+/** One immutable settlement row per (resolved question × forecaster). */
+export interface ReputationLedgerEntry {
+  id: string;
+  questionNodeId: string;
+  questionTitle: string;
+  category: AccuracyCategory;
+  forecasterHandle: string;
+  forecasterType: ParticipantType;
+  outcome: 0 | 1;
+  /** Time-weighted Reputation Point delta (already multiplied by conviction & horizon decay). */
+  rpDelta: number;
+  timeWeightedBrier: number;
+  /** The first (original) call on this question — used for "Called It" bragging cards. */
+  originalEventId: string;
+  originalProbability: number;
+  originalCrowdProb: number;
+  originalConfidence: number;
+  originalSubmittedAt: string;
+  effectiveMultiplier: number;
+  revisionCount: number;
+  isContrarianHit: boolean;
+  resolutionReceiptId: string;
+  resolvedAt: string;
+  isSandboxDrill: boolean;
+}
+
+export interface CategoryScoreSummary {
+  category: AccuracyCategory;
+  label: string;
+  reputationPoints: number;
+  resolvedCount: number;
+  activeCount: number;
+  avgBrier: number | null;
+  isVerified: boolean;
+  tier: ForecasterTier;
+  percentile: number | null;
+}
+
+export interface ForecasterScorecard {
+  handle: string;
+  displayName: string;
+  participantType: ParticipantType;
+  overallRp: number;
+  resolvedCount: number;
+  activeCount: number;
+  wins: number;
+  losses: number;
+  avgBrier: number | null;
+  isVerified: boolean;
+  tier: ForecasterTier;
+  tierLabel: string;
+  percentile: number | null;
+  categories: CategoryScoreSummary[];
+  bestCall: ReputationLedgerEntry | null;
+  /** Whether this scorecard contains any sandbox-drill settlements. */
+  includesSandboxDrills: boolean;
+}
+
+export interface WorldviewOutcome {
+  label: string;
+  probability: number;
+  nodeId?: string;
+}
+
+export interface WorldviewSnapshot {
+  id: string;
+  scenarioSlug: "ai-2027" | "ai-2040" | "ai-2050" | "lev" | "nature-of-reality";
+  scenarioTitle: string;
+  headline: string;
+  outcomes: WorldviewOutcome[];
+  ownerHandle: string;
+  ownerName: string;
+  ownerXHandle?: string;
+  createdAt: string;
+  receiptId: string;
+  payloadHash: string;
+}
+
+export interface QuestionResolution {
+  id: string;
+  questionNodeId: string;
+  outcome: 0 | 1;
+  source: OracleProvider;
+  resolvedBy: string;
+  evidenceUrl: string | null;
+  resolvedAt: string;
+  settledForecasterCount: number;
+  receiptId: string;
+}
+
+/** Companion row linking a published X post to an (immutable) forecast event. */
+export interface ForecastSocialLink {
+  eventId: string;
+  forecasterHandle: string;
+  xPostUrl: string;
+  attachedAt: string;
+}
+
+/** The authenticated human (or demo) principal for the current request. */
+export interface SessionForecaster {
+  profile: Profile;
+  authProvider: Exclude<ForecastAuthProvider, "agent_api" | "legacy_seed">;
+  linkedProviders: Array<"x" | "agifutures">;
+  email?: string | null;
+  isAdmin: boolean;
+}

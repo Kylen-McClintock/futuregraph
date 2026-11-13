@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -34,6 +34,37 @@ import {
   NodeSourceLink,
 } from "@/types/futuregraph";
 import { NodeProbabilityResult, computeBrierScore } from "@/lib/probability-engine";
+import { useAuth } from "@/components/AuthContext";
+import { ReputationImpactMeter } from "@/components/ReputationImpactMeter";
+import { ShareStudio } from "@/components/ShareStudio";
+import {
+  BASE_RP,
+  categoryColor,
+  categoryLabel,
+  classifyNodeCategory,
+  formatSignedRp,
+  horizonDecayFactor,
+  isNodeScorable,
+} from "@/lib/reputation-engine";
+import { apiPath, nodeForecastPath, withBasePath } from "@/lib/paths";
+
+const DRAFT_STORAGE_KEY = "fg-forecast-draft";
+
+interface ForecastDraft {
+  nodeId: string;
+  probPct: number;
+  confidence: number;
+  rationale: string;
+  citedUrl: string;
+  savedAt: number;
+}
+
+interface SealedForecast {
+  event: ForecastEvent;
+  scorable: boolean;
+  deltaIfYes: number;
+  deltaIfNo: number;
+}
 
 interface NodeAuditPanelProps {
   node: FutureNode;
@@ -88,11 +119,49 @@ export function NodeAuditPanel({
   );
   const [rationale, setRationale] = useState("");
   const [citedUrl, setCitedUrl] = useState("");
-  const [handleInput, setHandleInput] = useState("elena_vance");
   const [submittingForecast, setSubmittingForecast] = useState(false);
   const [latestReceipt, setLatestReceipt] = useState<AuditReceipt | null>(null);
   const [forecastError, setForecastError] = useState<string | null>(null);
   const [forecasts, setForecasts] = useState<ForecastEvent[]>(initialForecasts);
+
+  // Identity, conviction wager & reputation preview
+  const { forecaster, scorecard, loading: authLoading, openSignIn } = useAuth();
+  const actingHandle = forecaster?.profile.handle || "elena_vance";
+  const [confidence, setConfidence] = useState(1);
+  const [pendingAutoSubmit, setPendingAutoSubmit] = useState(false);
+  const [sealed, setSealed] = useState<SealedForecast | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [challengeTarget, setChallengeTarget] = useState<ForecastEvent | null>(null);
+
+  const nodeCategory = classifyNodeCategory(node);
+  const scorable = isNodeScorable(node);
+  const oraclePrice = node.question?.oracleLastPrice;
+  const crowdIsDefault =
+    (oraclePrice === null || oraclePrice === undefined) &&
+    (lensPriors.community === null || lensPriors.community === undefined) &&
+    (node.question?.demoHypothesisProb === undefined || node.question.demoHypothesisProb === 0.5);
+  // Mirrors the server's getCrowdProbability() chain so the preview matches the sealed receipt.
+  const crowdProbability =
+    (typeof oraclePrice === "number" ? oraclePrice : null) ??
+    lensPriors.community ??
+    node.question?.demoHypothesisProb ??
+    0.5;
+  const categoryStanding =
+    nodeCategory === "unscored_metaphysical"
+      ? undefined
+      : scorecard?.categories.find((c) => c.category === nodeCategory);
+  const currentCategoryRp = categoryStanding?.reputationPoints ?? BASE_RP;
+  const isVerifiedForecaster = Boolean(scorecard?.isVerified);
+  const [nowIso, setNowIso] = useState<string | null>(null);
+  useEffect(() => setNowIso(new Date().toISOString()), []);
+  const horizonDecay =
+    node.question?.closeDate && nowIso
+      ? horizonDecayFactor({
+          submittedAtIso: nowIso,
+          openedAtIso: node.question.openedAt || `${node.authorAsOf}T00:00:00Z`,
+          closeAtIso: `${node.question.closeDate}T23:59:59Z`,
+        })
+      : 1;
 
   // Evidence state
   const [evidence, setEvidence] = useState<NodeSourceLink[]>(initialEvidence);
@@ -133,30 +202,66 @@ export function NodeAuditPanel({
     }
   };
 
-  const handleForecastSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveDraft = useCallback(() => {
+    try {
+      const draft: ForecastDraft = {
+        nodeId: node.id,
+        probPct: myProbPct,
+        confidence,
+        rationale,
+        citedUrl,
+        savedAt: Date.now(),
+      };
+      sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    } catch {
+      // Storage blocked: the draft simply won't survive an OAuth redirect.
+    }
+  }, [node.id, myProbPct, confidence, rationale, citedUrl]);
+
+  const lockInForecast = useCallback(async () => {
     setForecastError(null);
     setSubmittingForecast(true);
     try {
       const probDecimal = Number((myProbPct / 100).toFixed(4));
-      const res = await fetch("/futuregraph/api/v1/forecasts", {
+      const res = await fetch(apiPath("/v1/forecasts"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nodeId: node.id,
           probability: probDecimal,
+          confidenceMultiplier: confidence,
           uncertaintyLower: Math.max(0, Number((probDecimal - 0.12).toFixed(2))),
           uncertaintyUpper: Math.min(1, Number((probDecimal + 0.12).toFixed(2))),
           rationale,
           citedUrls: citedUrl ? [citedUrl] : [node.sourceUrl],
-          forecasterHandle: handleInput || "elena_vance",
         }),
       });
       const data = await res.json();
+      if (res.status === 401 && data.requiresAuth) {
+        saveDraft();
+        openSignIn({
+          reason: "Your session expired. Sign in again to lock in this forecast — your draft is saved.",
+          next: `${nodeForecastPath(node)}?restoreDraft=1`,
+          onSuccess: () => setPendingAutoSubmit(true),
+        });
+        return;
+      }
       if (!res.ok) throw new Error(data.error || "Failed to submit forecast");
       setForecasts((prev) => [data.event, ...prev]);
       setLatestReceipt(data.receipt);
+      setSealed({
+        event: data.event,
+        scorable: Boolean(data.scorable),
+        deltaIfYes: data.preview?.deltaIfYes ?? 0,
+        deltaIfNo: data.preview?.deltaIfNo ?? 0,
+      });
       setRationale("");
+      try {
+        sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+      setShareOpen(true);
       if (onOverrideNodeProbability) {
         onOverrideNodeProbability(node.id, probDecimal);
       }
@@ -165,7 +270,53 @@ export function NodeAuditPanel({
     } finally {
       setSubmittingForecast(false);
     }
+  }, [myProbPct, confidence, rationale, citedUrl, node, onOverrideNodeProbability, openSignIn, saveDraft]);
+
+  const handleForecastSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forecaster) {
+      // Frictionless "Draft → Sign in to Lock In": keep the draft across the OAuth redirect.
+      saveDraft();
+      openSignIn({
+        reason: `Lock in your ${myProbPct}% call on "${node.title.slice(0, 80)}". Your slider, confidence wager and reasoning are saved.`,
+        next: `${nodeForecastPath(node)}?restoreDraft=1`,
+        onSuccess: () => setPendingAutoSubmit(true),
+      });
+      return;
+    }
+    await lockInForecast();
   };
+
+  // Restore a saved draft (after an OAuth round-trip) and show any "challenge" context from X.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    try {
+      const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw) as ForecastDraft;
+        const fresh = Date.now() - draft.savedAt < 1000 * 60 * 60 * 6;
+        if (draft.nodeId === node.id && fresh) {
+          setMyProbPct(draft.probPct);
+          setConfidence(draft.confidence);
+          setRationale(draft.rationale);
+          setCitedUrl(draft.citedUrl);
+          if (params.get("restoreDraft") === "1") setPendingAutoSubmit(true);
+        }
+      }
+    } catch {
+      // ignore corrupt drafts
+    }
+    const challengeId = params.get("challenge");
+    if (challengeId) {
+      setChallengeTarget(initialForecasts.find((f) => f.id === challengeId) || null);
+    }
+  }, [node.id, initialForecasts]);
+
+  useEffect(() => {
+    if (!pendingAutoSubmit || authLoading || !forecaster || submittingForecast) return;
+    setPendingAutoSubmit(false);
+    if (rationale.trim().length >= 8) void lockInForecast();
+  }, [pendingAutoSubmit, authLoading, forecaster, submittingForecast, rationale, lockInForecast]);
 
   const handleEvidenceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,7 +330,7 @@ export function NodeAuditPanel({
         url: evUrl,
         relevanceNote: evNote,
         relationship: evRelation,
-        proposerHandle: handleInput || "elena_vance",
+        proposerHandle: actingHandle,
       }),
     });
     const data = await res.json();
@@ -203,7 +354,7 @@ export function NodeAuditPanel({
         thesis: argThesis,
         reasoning: argReasoning,
         targetAssumption: argAssumption || undefined,
-        authorHandle: handleInput || "elena_vance",
+        authorHandle: actingHandle,
       }),
     });
     const data = await res.json();
@@ -228,7 +379,7 @@ export function NodeAuditPanel({
         proposedSummary: propSummary,
         conditionalAssumption: `P(Branch | ${node.logicalId}) = ${propProb}%`,
         suggestedProbability: Number((propProb / 100).toFixed(2)),
-        proposerHandle: handleInput || "elena_vance",
+        proposerHandle: actingHandle,
       }),
     });
     if (res.ok) {
@@ -707,24 +858,65 @@ export function NodeAuditPanel({
                 </div>
               </div>
 
+              {challengeTarget && (
+                <div className="rounded-lg border border-sky-500/40 bg-sky-950/30 p-2.5 text-xs text-sky-200">
+                  You&apos;re challenging <strong>@{challengeTarget.forecasterHandle}</strong>&apos;s{" "}
+                  <span className="font-mono tabular-nums">{Math.round(challengeTarget.probability * 100)}%</span> call
+                  {typeof challengeTarget.crowdProbSnapshot === "number" && (
+                    <>
+                      {" "}
+                      (crowd was <span className="font-mono tabular-nums">{Math.round(challengeTarget.crowdProbSnapshot * 100)}%</span>)
+                    </>
+                  )}
+                  . Lock in your counter-call and may the better forecaster win.
+                </div>
+              )}
+
+              <ReputationImpactMeter
+                probability={myProbPct / 100}
+                crowdProbability={crowdProbability}
+                crowdIsDefault={crowdIsDefault}
+                confidence={confidence}
+                onConfidenceChange={setConfidence}
+                currentRp={currentCategoryRp}
+                isVerified={isVerifiedForecaster}
+                resolvedCount={scorecard?.resolvedCount ?? 0}
+                horizonDecay={horizonDecay}
+                scorable={scorable}
+                categoryLabel={categoryLabel(nodeCategory)}
+                categoryColor={categoryColor(nodeCategory)}
+                signedIn={Boolean(forecaster)}
+              />
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">
-                    Forecaster Handle
-                  </label>
-                  <input
-                    type="text"
-                    value={handleInput}
-                    onChange={(e) => setHandleInput(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white focus:border-amber-500 focus:outline-none"
-                    placeholder="elena_vance"
-                  />
+                  <span className="block text-xs text-slate-400 mb-1">Forecasting as</span>
+                  {forecaster ? (
+                    <Link
+                      href={`/u/${forecaster.profile.handle}`}
+                      className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white hover:border-amber-500/50"
+                    >
+                      <span className="font-semibold">@{forecaster.profile.xHandle || forecaster.profile.handle}</span>
+                      <span className="text-slate-400">
+                        {forecaster.authProvider === "x"
+                          ? "· X verified"
+                          : forecaster.authProvider === "agifutures"
+                          ? "· AGIFutures"
+                          : "· demo session"}
+                      </span>
+                    </Link>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-400">
+                      Drafting — sign in with X or AGIFutures.org when you lock in
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">
+                  <label htmlFor={`cite-${node.id}`} className="block text-xs text-slate-400 mb-1">
                     Supporting Citation URL (optional)
                   </label>
                   <input
+                    id={`cite-${node.id}`}
                     type="url"
                     value={citedUrl}
                     onChange={(e) => setCitedUrl(e.target.value)}
@@ -735,21 +927,23 @@ export function NodeAuditPanel({
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1">
-                  Reasoning & Key Assumptions (required for audit receipt)
+                <label htmlFor={`rationale-${node.id}`} className="block text-xs text-slate-400 mb-1">
+                  Reasoning &amp; Key Assumptions (required for audit receipt)
                 </label>
                 <textarea
+                  id={`rationale-${node.id}`}
                   rows={3}
                   value={rationale}
                   onChange={(e) => setRationale(e.target.value)}
                   required
+                  minLength={8}
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-amber-500 focus:outline-none"
                   placeholder="Explain why your probability differs from the baseline or what conditioning assumption drives your view..."
                 />
               </div>
 
               {forecastError && (
-                <div className="rounded-lg border border-rose-500/40 bg-rose-950/40 p-2.5 text-xs text-rose-300">
+                <div role="alert" className="rounded-lg border border-rose-500/40 bg-rose-950/40 p-2.5 text-xs text-rose-300">
                   {forecastError}
                 </div>
               )}
@@ -762,7 +956,9 @@ export function NodeAuditPanel({
                 >
                   {submittingForecast
                     ? "Signing SHA-256 Receipt..."
-                    : `Submit ${myProbPct}% Forecast & Generate Receipt`}
+                    : forecaster
+                    ? `Lock In ${myProbPct}% Forecast`
+                    : `Sign In & Lock In ${myProbPct}%`}
                 </button>
                 {onOverrideNodeProbability && (
                   <button
@@ -797,7 +993,47 @@ export function NodeAuditPanel({
                   <div className="text-[11px] font-mono text-slate-300 break-all">
                     Chain Hash: {latestReceipt.chainSha256}
                   </div>
+                  {sealed && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <span className="text-[11px] text-slate-300">
+                        {sealed.scorable ? (
+                          <>
+                            Sealed at <span className="font-mono">{sealed.event.confidenceMultiplier?.toFixed(2)}×</span>:{" "}
+                            <span className="font-mono text-emerald-300">YES {formatSignedRp(sealed.deltaIfYes)}</span> ·{" "}
+                            <span className="font-mono text-rose-300">NO {formatSignedRp(sealed.deltaIfNo)}</span>
+                          </>
+                        ) : (
+                          "Recorded on the ledger (unscored milestone)."
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShareOpen(true)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-slate-200 keep-white"
+                      >
+                        <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span className="text-slate-950">Share to X</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
+              )}
+              {sealed && (
+                <ShareStudio
+                  open={shareOpen}
+                  onClose={() => setShareOpen(false)}
+                  title="Your forecast is locked in"
+                  subtitle="Share the receipt-backed card. When it resolves your way, the same link becomes a “Called It” card."
+                  mode="forecast"
+                  cardParams={{ eventId: sealed.event.id }}
+                  sharePath={`/f/${sealed.event.id}`}
+                  shareText={`I'm calling ${Math.round(sealed.event.probability * 100)}% on: ${node.title.slice(0, 120)}${
+                    typeof sealed.event.crowdProbSnapshot === "number"
+                      ? ` (crowd: ${Math.round(sealed.event.crowdProbSnapshot * 100)}%)`
+                      : ""
+                  }. Locked in with a tamper-evident receipt. Think I'm wrong? Make your counter-call:`}
+                  attachEventId={sealed.event.id}
+                />
               )}
             </form>
           </div>
@@ -1446,9 +1682,9 @@ export function NodeAuditPanel({
           <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-950">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={`/api/og?nodeId=${encodeURIComponent(
+              src={apiPath(`/og?nodeId=${encodeURIComponent(
                 node.id
-              )}&myProb=${encodeURIComponent((myProbPct / 100).toFixed(2))}`}
+              )}&myProb=${encodeURIComponent((myProbPct / 100).toFixed(2))}`)}
               alt="Challenge Forecast Social Card"
               className="w-full h-auto"
             />
@@ -1458,7 +1694,7 @@ export function NodeAuditPanel({
             <button
               type="button"
               onClick={() => {
-                const url = `${window.location.origin}/scenarios/${scenarioSlug}/n/${node.id}?challengeProb=${myProbPct}`;
+                const url = `${window.location.origin}${withBasePath(nodeForecastPath(node))}?challengeProb=${myProbPct}`;
                 navigator.clipboard.writeText(url);
                 setCopiedChallenge(true);
                 setTimeout(() => setCopiedChallenge(false), 2500);

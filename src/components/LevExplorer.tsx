@@ -30,6 +30,165 @@ import {
   ConservativeUpdateMode,
   formatDecimalYear,
 } from "@/lib/lev-engine";
+import { computeOverlayLevDashboard } from "@/lib/forecaster-engine";
+import { UnifiedForecasterBar } from "@/components/UnifiedForecasterBar";
+import { useGraphForecaster } from "@/hooks/useGraphForecaster";
+
+function FutureGraphProbabilityCurve({
+  p25Label,
+  p50Label,
+  p75Label,
+  p10Label,
+  p90Label,
+  accentHex,
+  iqrFillRgba,
+  gradId,
+}: {
+  p25Label: string;
+  p50Label: string;
+  p75Label: string;
+  p10Label?: string;
+  p90Label?: string;
+  accentHex: string;
+  iqrFillRgba: string;
+  gradId: string;
+}) {
+  const fullCurvePath =
+    "M 6 44 C 28 44, 48 39, 68 23 C 82 12, 92 6, 102 6 C 114 6, 128 13, 146 24 C 170 38, 198 43, 234 44";
+  const fullAreaPath = `${fullCurvePath} L 234 44 L 6 44 Z`;
+  const iqrAreaPath =
+    "M 68 44 L 68 23 C 82 12, 92 6, 102 6 C 114 6, 128 13, 146 24 L 146 44 Z";
+
+  return (
+    <div className="rounded-xl bg-slate-900/80 border border-slate-800/90 p-3 space-y-1.5 overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] font-mono">
+        <span className="text-slate-300">
+          25th Pct: <strong className="text-white">{p25Label}</strong>
+        </span>
+        <span
+          className="px-1.5 py-0.5 rounded font-bold border"
+          style={{
+            color: accentHex,
+            borderColor: `${accentHex}55`,
+            backgroundColor: `${accentHex}18`,
+          }}
+        >
+          50th Pct: {p50Label}
+        </span>
+        <span className="text-slate-300">
+          75th Pct: <strong className="text-white">{p75Label}</strong>
+        </span>
+      </div>
+
+      <svg
+        viewBox="0 0 240 50"
+        className="w-full h-12 overflow-visible"
+        role="img"
+        aria-label={`Probability density distribution curve: 25th percentile ${p25Label}, 50th percentile ${p50Label}, 75th percentile ${p75Label}`}
+      >
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={accentHex} stopOpacity="0.30" />
+            <stop offset="100%" stopColor={accentHex} stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+
+        <line
+          x1="6"
+          y1="44"
+          x2="234"
+          y2="44"
+          stroke="rgba(148,163,184,0.22)"
+          strokeWidth="1"
+        />
+
+        <path d={fullAreaPath} fill={`url(#${gradId})`} />
+        <path d={iqrAreaPath} fill={iqrFillRgba} />
+        <path
+          d={fullCurvePath}
+          fill="none"
+          stroke={accentHex}
+          strokeWidth="1.9"
+          strokeLinecap="round"
+        />
+
+        {/* P10 & P90 subtle tail ticks */}
+        {p10Label && (
+          <line
+            x1="36"
+            y1="38"
+            x2="36"
+            y2="44"
+            stroke="rgba(148,163,184,0.4)"
+            strokeWidth="1"
+            strokeDasharray="1 2"
+          />
+        )}
+        {p90Label && (
+          <line
+            x1="186"
+            y1="39"
+            x2="186"
+            y2="44"
+            stroke="rgba(148,163,184,0.4)"
+            strokeWidth="1"
+            strokeDasharray="1 2"
+          />
+        )}
+
+        {/* 25th Percentile Marker */}
+        <line
+          x1="68"
+          y1="23"
+          x2="68"
+          y2="44"
+          stroke="rgba(226,232,240,0.65)"
+          strokeWidth="1.1"
+          strokeDasharray="2 2"
+        />
+        <circle cx="68" cy="23" r="2.5" fill="#e2e8f0" />
+
+        {/* 50th Percentile Peak Marker */}
+        <line
+          x1="102"
+          y1="6"
+          x2="102"
+          y2="44"
+          stroke={accentHex}
+          strokeWidth="2"
+        />
+        <circle
+          cx="102"
+          cy="6"
+          r="4"
+          fill={accentHex}
+          stroke="#0f172a"
+          strokeWidth="1.4"
+        />
+
+        {/* 75th Percentile Marker */}
+        <line
+          x1="146"
+          y1="24"
+          x2="146"
+          y2="44"
+          stroke="rgba(226,232,240,0.65)"
+          strokeWidth="1.1"
+          strokeDasharray="2 2"
+        />
+        <circle cx="146" cy="24" r="2.5" fill="#e2e8f0" />
+      </svg>
+
+      {p10Label && p90Label && (
+        <div className="flex flex-wrap items-center justify-between gap-1 text-[9px] font-mono text-slate-400 pt-0.5 border-t border-slate-800/70">
+          <span>P10 Fast Tail: {p10Label}</span>
+          <span>IQR (25th-75th): {p25Label} - {p75Label}</span>
+          <span>P90 Slow Tail: {p90Label}</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export interface LevExplorerProps {
   isEmbed?: boolean;
@@ -53,6 +212,7 @@ export function LevExplorer({
   const [updateMode, setUpdateMode] = useState<ConservativeUpdateMode>(initialMode);
   const [currentAge, setCurrentAge] = useState<number>(initialAge);
   const [selectedPulseIdx, setSelectedPulseIdx] = useState<number>(0);
+  const [poaPredictorCohort, setPoaPredictorCohort] = useState<"p99" | "p80">("p99");
   const isMinimal = initialDetail === "minimal";
   const [chartTab, setChartTab] = useState<"velocity" | "alive_healthy" | "speedometer">(
     "velocity"
@@ -121,7 +281,11 @@ export function LevExplorer({
     return () => observer.disconnect();
   }, [isEmbed, chartTab, expertFilter, updateMode]);
 
-  const dashboard = useMemo(() => {
+  const forecasterState = useGraphForecaster({
+    graphId: "lev",
+  });
+
+  const baseDashboard = useMemo(() => {
     return computeLevDashboard({
       referenceDate: new Date(),
       updateMode,
@@ -138,6 +302,40 @@ export function LevExplorer({
     marketsWeightPct,
     expertsWeightPct,
     trajectoryWeightPct,
+  ]);
+
+  const dashboard = useMemo(() => {
+    if (
+      forecasterState.activeLensMode === "crowd_wisdom" &&
+      forecasterState.crowdDistribution.levForecast
+    ) {
+      return computeOverlayLevDashboard({
+        baseDashboard,
+        targetForecast: forecasterState.crowdDistribution.levForecast,
+        updateMode,
+        currentChronologicalAge: currentAge,
+      });
+    }
+    if (
+      forecasterState.activeLensMode === "individual_actor" &&
+      forecasterState.selectedActorRun?.levForecast
+    ) {
+      return computeOverlayLevDashboard({
+        baseDashboard,
+        targetForecast: forecasterState.selectedActorRun.levForecast,
+        updateMode,
+        currentChronologicalAge: currentAge,
+      });
+    }
+    // Exact LEVL / Default composite preserved untouched
+    return baseDashboard;
+  }, [
+    baseDashboard,
+    currentAge,
+    forecasterState.activeLensMode,
+    forecasterState.crowdDistribution.levForecast,
+    forecasterState.selectedActorRun?.levForecast,
+    updateMode,
   ]);
 
   const filteredExperts = useMemo(() => {
@@ -385,37 +583,83 @@ export function LevExplorer({
           </a>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-          {/* Primary Headline: 99th Percentile Human LEV Aggregate Date */}
-          <div className={`${isMinimal ? "lg:col-span-6" : "lg:col-span-5"} rounded-2xl border-2 border-emerald-500/50 bg-slate-950/85 p-5 flex flex-col justify-between space-y-4`}>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
+        {/* Toggle between LEVL / Default, Crowd Wisdom (All / Humans+Mkts / AI Agents), and Individual Persons or Worldview Agents */}
+        {!isEmbed && (
+          <UnifiedForecasterBar
+            forecasterState={forecasterState}
+            defaultBaselineLabel="LEVL / Default"
+          />
+        )}
+
+        {/* 3-Card Probabilistic Forecasts Strip (50th Percentile Headline + 25th/75th Percentile Bounds + Probability Distribution Curve) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+          {/* Card 1: Top 1% (99th-Percentile PoA) LEV Prediction */}
+          <div className="rounded-2xl border-2 border-emerald-500/50 bg-slate-950/85 p-5 flex flex-col justify-between space-y-3.5 overflow-hidden">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-300">
-                  Aggregate 99th-Percentile Human LEV Date
+                  Top 1% PoA (99th-Pct) LEV Prediction
                 </span>
                 <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[11px] font-mono font-bold text-emerald-300 tabular-nums">
                   {dashboard.cohorts.p99.yearsToLev} yrs away
                 </span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white tabular-nums">
-                {dashboard.aggregate99thFormatted}{" "}
-                <span className="text-xl sm:text-2xl font-mono text-emerald-400">
-                  ({dashboard.aggregate99thYear})
-                </span>
-              </h1>
-              <p className="text-xs text-slate-300 pretty-copy">
-                When a{" "}
+
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white tabular-nums">
+                    {dashboard.aggregate99thFormatted}
+                  </h1>
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-[11px] font-mono font-bold uppercase text-emerald-300">
+                    50th Pct ({dashboard.aggregate99thYear})
+                  </span>
+                  {forecasterState.showVarianceFromCrowd &&
+                    forecasterState.varianceReport?.levVariance && (
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-bold border tabular-nums ${
+                          forecasterState.varianceReport.levVariance
+                            .p99YearDelta <= 0
+                            ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-200"
+                            : "bg-rose-500/20 border-rose-500/40 text-rose-200"
+                        }`}
+                      >
+                        {forecasterState.varianceReport.levVariance
+                          .p99YearDelta > 0
+                          ? "+"
+                          : ""}
+                        {forecasterState.varianceReport.levVariance.p99YearDelta.toFixed(
+                          1
+                        )}{" "}
+                        yrs vs Crowd
+                      </span>
+                    )}
+                </div>
+                {dashboard.latestWeeklyPulse && (
+                  <span className="text-[11px] font-mono font-bold text-emerald-300 tabular-nums">
+                    {Math.abs(dashboard.latestWeeklyPulse.netWeeklyDelta.days99thLevShift)}d closer this wk
+                  </span>
+                )}
+              </div>
+
+              <p className="text-xs text-slate-300 leading-snug">
+                50th-percentile forecast when a{" "}
                 <strong className="text-emerald-300">
-                  99th-percentile longevity-optimized human
+                  Top 1% biological Pace of Aging human
                 </strong>{" "}
-                (top 1% biological Pace of Aging + early frontier therapy access)
-                crosses{" "}
-                <strong className="text-white">
-                  &ge;1.0 year of healthy life expectancy gained per calendar year
-                </strong>
-                .
+                crosses &ge;1.0 yr healthy life expectancy gained per calendar year.
               </p>
             </div>
+
+            <FutureGraphProbabilityCurve
+              p25Label={dashboard.cone99th.p25Formatted}
+              p50Label={dashboard.cone99th.p50Formatted}
+              p75Label={dashboard.cone99th.p75Formatted}
+              p10Label={dashboard.cone99th.p10Formatted}
+              p90Label={dashboard.cone99th.p90Formatted}
+              accentHex="#10b981"
+              iqrFillRgba="rgba(16, 185, 129, 0.25)"
+              gradId="fg-lev-99-pdf"
+            />
 
             {/* Sub-aggregate breakdown pills */}
             <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-800/80 text-center">
@@ -444,273 +688,259 @@ export function LevExplorer({
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Cone of Uncertainty Bar */}
-            <div className="rounded-xl bg-slate-900/70 border border-slate-800/90 p-3 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] font-mono">
-                <span className="text-slate-400">
-                  99th-Pct Cohort Cone of Uncertainty:
+          {/* Card 2: Top 20% (80th-Percentile PoA) LEV Prediction */}
+          <div className="rounded-2xl border-2 border-sky-500/45 bg-slate-950/85 p-5 flex flex-col justify-between space-y-3.5 overflow-hidden">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-sky-300">
+                  80th-Percentile PoA (Top 20%) LEV Prediction
                 </span>
-                <span className="text-emerald-300 font-bold tabular-nums">
-                  IQR: {dashboard.cone99th.p25Formatted} –{" "}
-                  {dashboard.cone99th.p75Formatted}
+                <span className="rounded bg-sky-500/20 px-2 py-0.5 text-[11px] font-mono font-bold text-sky-300 tabular-nums">
+                  {dashboard.cohorts.p80.yearsToLev} yrs away
                 </span>
               </div>
-              {!isMinimal && (
-                <div className="grid grid-cols-4 gap-1.5 text-[11px] font-mono tabular-nums">
-                  <div className="rounded bg-slate-950 px-2 py-1 border border-slate-800/80">
-                    <span className="text-slate-400 block text-[9px]">P10 (Fast AI)</span>
-                    <span className="text-emerald-300 font-bold">
-                      {dashboard.cone99th.p10Year}
-                    </span>
-                  </div>
-                  <div className="rounded bg-slate-950 px-2 py-1 border border-emerald-500/40">
-                    <span className="text-slate-400 block text-[9px]">P50 Median</span>
-                    <span className="text-white font-bold">
-                      {dashboard.cone99th.p50Year}
-                    </span>
-                  </div>
-                  <div className="rounded bg-slate-950 px-2 py-1 border border-slate-800/80">
-                    <span className="text-slate-400 block text-[9px]">P90 (Slow)</span>
-                    <span className="text-amber-300 font-bold">
-                      {dashboard.cone99th.p90Year}
-                    </span>
-                  </div>
-                  <div className="rounded bg-slate-950 px-2 py-1 border border-slate-800/80">
-                    <span className="text-slate-400 block text-[9px]">P99 Tail Bound</span>
-                    <span className="text-sky-300 font-bold">
-                      {dashboard.cone99th.p99TailConfidenceYear}
-                    </span>
-                  </div>
+
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white tabular-nums">
+                    {dashboard.aggregate80thFormatted}
+                  </h2>
+                  <span className="px-2 py-0.5 rounded-md bg-sky-500/20 border border-sky-500/40 text-[11px] font-mono font-bold uppercase text-sky-300">
+                    50th Pct ({dashboard.aggregate80thYear})
+                  </span>
                 </div>
-              )}
+                {dashboard.latestWeeklyPulse && (
+                  <span className="text-[11px] font-mono font-bold text-sky-300 tabular-nums">
+                    {Math.abs(dashboard.latestWeeklyPulse.netWeeklyDelta.days80thLevShift)}d closer this wk
+                  </span>
+                )}
+              </div>
+
+              <p className="text-xs text-slate-300 leading-snug">
+                50th-percentile forecast for{" "}
+                <strong className="text-sky-300">
+                  80th-percentile (Top 20% PoA) proactive health adopters
+                </strong>{" "}
+                (Zone 2/HIIT, circadian fasting, preventive care &amp; phase-approved therapeutics).
+              </p>
+            </div>
+
+            <FutureGraphProbabilityCurve
+              p25Label={dashboard.cone80th.p25Formatted}
+              p50Label={dashboard.cone80th.p50Formatted}
+              p75Label={dashboard.cone80th.p75Formatted}
+              p10Label={dashboard.cone80th.p10Formatted}
+              p90Label={dashboard.cone80th.p90Formatted}
+              accentHex="#38bdf8"
+              iqrFillRgba="rgba(56, 189, 248, 0.25)"
+              gradId="fg-lev-80-pdf"
+            />
+
+            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-800/80 text-center">
+              <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2">
+                <div className="text-[10px] font-mono uppercase text-slate-400">
+                  25th Pct (IQR)
+                </div>
+                <div className="text-sm font-mono font-bold text-sky-300 tabular-nums">
+                  {dashboard.cone80th.p25Formatted}
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-900/90 border border-sky-500/35 p-2">
+                <div className="text-[10px] font-mono uppercase text-sky-300">
+                  50th Pct Median
+                </div>
+                <div className="text-sm font-mono font-bold text-white tabular-nums">
+                  {dashboard.cone80th.p50Formatted}
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2">
+                <div className="text-[10px] font-mono uppercase text-slate-400">
+                  75th Pct (IQR)
+                </div>
+                <div className="text-sm font-mono font-bold text-sky-300 tabular-nums">
+                  {dashboard.cone80th.p75Formatted}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Right Columns: Live Conservative Pace of Aging Cards (99th vs 80th vs optional 50th Percentile) */}
-          <div className={`${isMinimal ? "lg:col-span-6 grid grid-cols-1 sm:grid-cols-2" : "lg:col-span-7 grid grid-cols-1 sm:grid-cols-3"} gap-3.5`}>
-            {/* Card 1: 99th Percentile Pace of Aging */}
-            <div className="fg-card-size-container">
-              <article className="h-full rounded-2xl border border-emerald-500/45 bg-slate-950/80 p-4 flex flex-col justify-between space-y-3">
-                <header className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono font-bold uppercase text-emerald-300">
-                      99th Percentile
-                    </span>
-                    <span className="text-[11px] font-mono text-emerald-400 font-bold">
-                      Top 1% Human
-                    </span>
-                  </div>
-                  <h2 className="text-sm font-bold text-white">
-                    Current Pace of Aging (99th Pct)
-                  </h2>
-                </header>
+          {/* Card 3: Pace of Aging (PoA) Predictor with Top 1% <-> Top 20% Toggle */}
+          {(() => {
+            const activePoa =
+              poaPredictorCohort === "p99" ? dashboard.cohorts.p99 : dashboard.cohorts.p80;
+            const activeShift = dashboard.latestWeeklyPulse
+              ? poaPredictorCohort === "p99"
+                ? dashboard.latestWeeklyPulse.netWeeklyDelta.poa99thShift
+                : dashboard.latestWeeklyPulse.netWeeklyDelta.poa80thShift
+              : -0.0035;
+            const isTop1 = poaPredictorCohort === "p99";
 
+            return (
+              <div className="rounded-2xl border-2 border-violet-500/45 bg-slate-950/85 p-5 flex flex-col justify-between space-y-3.5 overflow-hidden">
                 <div className="space-y-2">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl sm:text-4xl font-mono font-extrabold text-emerald-400 tabular-nums">
-                      {dashboard.cohorts.p99.intrinsicPaceOfAging.toFixed(2)}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-violet-300">
+                      Pace of Aging (PoA) Predictor
                     </span>
-                    <span className="text-xs font-mono text-slate-300">
-                      bio-yrs / yr
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-300">
-                    Ages{" "}
-                    <strong className="text-white tabular-nums">
-                      {dashboard.cohorts.p99.bioMonthsPerYear} bio-months
-                    </strong>{" "}
-                    per 12 calendar months — banking{" "}
-                    <strong className="text-emerald-300 tabular-nums">
-                      +{dashboard.cohorts.p99.daysGainedPerYear} days/yr
-                    </strong>{" "}
-                    of healthy runway today.
-                  </p>
-                  {!isMinimal && (
-                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 text-[11px] space-y-1 font-mono tabular-nums">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Raw Leaderboard Ref:</span>
-                        <span className="text-slate-300">~0.56 yr/yr</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Conservative Shrinkage:</span>
-                        <span className="text-emerald-300 font-bold">
-                          {dashboard.cohorts.p99.intrinsicPaceOfAging.toFixed(3)} yr/yr
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Annual Protocol Drift:</span>
-                        <span className="text-emerald-300">
-                          -{dashboard.cohorts.p99.annualConservativeDrift.toFixed(3)}/yr
-                        </span>
-                      </div>
-                      <div className="flex justify-between pt-1 border-t border-slate-800">
-                        <span className="text-slate-300 font-bold">LEV Intercept:</span>
-                        <span className="text-emerald-400 font-bold">
-                          {dashboard.aggregate99thFormatted}
-                        </span>
-                      </div>
+                    <div className="inline-flex items-center rounded-lg bg-slate-900 border border-slate-700/80 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setPoaPredictorCohort("p99")}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                          isTop1
+                            ? "bg-violet-500/30 text-violet-200 border border-violet-400/50 shadow-xs"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        Top 1% PoA
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPoaPredictorCohort("p80")}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                          !isTop1
+                            ? "bg-sky-500/30 text-sky-200 border border-sky-400/50 shadow-xs"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        Top 20% PoA
+                      </button>
                     </div>
-                  )}
-                </div>
-
-                <footer className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/70">
-                  <span>{isMinimal ? "LEV Intercept:" : `Bio-Age at LEV (Age ${currentAge}):`}</span>
-                  <strong className="font-mono text-emerald-300 tabular-nums">
-                    {isMinimal ? dashboard.aggregate99thFormatted : `~${dashboard.cohorts.p99.biologicalAgeAtLev} yrs`}
-                  </strong>
-                </footer>
-              </article>
-            </div>
-
-            {/* Card 2: 80th Percentile Pace of Aging */}
-            <div className="fg-card-size-container">
-              <article className="h-full rounded-2xl border border-sky-500/45 bg-slate-950/80 p-4 flex flex-col justify-between space-y-3">
-                <header className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-sky-500/20 px-2 py-0.5 text-[10px] font-mono font-bold uppercase text-sky-300">
-                      80th Percentile
-                    </span>
-                    <span className="text-[11px] font-mono text-sky-400 font-bold">
-                      Top 20% Human
-                    </span>
                   </div>
-                  <h2 className="text-sm font-bold text-white">
-                    Current Pace of Aging (80th Pct)
-                  </h2>
-                </header>
 
-                <div className="space-y-2">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl sm:text-4xl font-mono font-extrabold text-sky-400 tabular-nums">
-                      {dashboard.cohorts.p80.intrinsicPaceOfAging.toFixed(2)}
-                    </span>
-                    <span className="text-xs font-mono text-slate-300">
-                      bio-yrs / yr
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-300">
-                    Ages{" "}
-                    <strong className="text-white tabular-nums">
-                      {dashboard.cohorts.p80.bioMonthsPerYear} bio-months
-                    </strong>{" "}
-                    per 12 calendar months — banking{" "}
-                    <strong className="text-sky-300 tabular-nums">
-                      +{dashboard.cohorts.p80.daysGainedPerYear} days/yr
-                    </strong>{" "}
-                    of healthy runway today.
-                  </p>
-                  {!isMinimal && (
-                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 text-[11px] space-y-1 font-mono tabular-nums">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">DunedinPACE Z=-0.84:</span>
-                        <span className="text-slate-300">~0.81–0.88 yr/yr</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Conservative Estimate:</span>
-                        <span className="text-sky-300 font-bold">
-                          {dashboard.cohorts.p80.intrinsicPaceOfAging.toFixed(3)} yr/yr
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Annual Protocol Drift:</span>
-                        <span className="text-sky-300">
-                          -{dashboard.cohorts.p80.annualConservativeDrift.toFixed(3)}/yr
-                        </span>
-                      </div>
-                      <div className="flex justify-between pt-1 border-t border-slate-800">
-                        <span className="text-slate-300 font-bold">LEV Intercept:</span>
-                        <span className="text-sky-400 font-bold">
-                          {dashboard.aggregate80thFormatted}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <footer className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/70">
-                  <span>{isMinimal ? "LEV Intercept:" : `Bio-Age at LEV (Age ${currentAge}):`}</span>
-                  <strong className="font-mono text-sky-300 tabular-nums">
-                    {isMinimal ? dashboard.aggregate80thFormatted : `~${dashboard.cohorts.p80.biologicalAgeAtLev} yrs`}
-                  </strong>
-                </footer>
-              </article>
-            </div>
-
-            {/* Card 3: 50th Percentile Status Quo Baseline (Hidden in minimal detail mode) */}
-            {!isMinimal && (
-              <div className="fg-card-size-container">
-                <article className="h-full rounded-2xl border border-amber-500/35 border-dashed bg-slate-950/80 p-4 flex flex-col justify-between space-y-3">
-                  <header className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-mono font-bold uppercase text-amber-300">
-                        50th Percentile
-                      </span>
-                      <span className="text-[11px] font-mono text-amber-300 font-bold">
-                        Status Quo
-                      </span>
-                    </div>
-                    <h2 className="text-sm font-bold text-white">
-                      Population Mean (Status Quo)
-                    </h2>
-                  </header>
-
-                  <div className="space-y-2">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl sm:text-4xl font-mono font-extrabold text-amber-400 tabular-nums">
-                        {dashboard.cohorts.p50.intrinsicPaceOfAging.toFixed(2)}
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span
+                        className={`text-3xl sm:text-4xl font-mono font-extrabold tabular-nums ${
+                          isTop1 ? "text-violet-300" : "text-sky-300"
+                        }`}
+                      >
+                        {activePoa.poaP50.toFixed(3)}
                       </span>
                       <span className="text-xs font-mono text-slate-300">
-                        bio-yrs / yr
+                        bio-yr / yr
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-bold uppercase border ${
+                          isTop1
+                            ? "bg-violet-500/20 border-violet-500/40 text-violet-300"
+                            : "bg-sky-500/20 border-sky-500/40 text-sky-300"
+                        }`}
+                      >
+                        50th Pct
                       </span>
                     </div>
-                    <p className="text-xs text-slate-300">
-                      Ages{" "}
-                      <strong className="text-white tabular-nums">
-                        12.0 bio-months
-                      </strong>{" "}
-                      per 12 calendar months — standard population actuarial curve
-                      tracked by Metaculus #6592.
-                    </p>
-                    <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 text-[11px] space-y-1 font-mono tabular-nums">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Population Mean (μ):</span>
-                        <span className="text-slate-300">1.000 yr/yr (SD 0.10)</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Metaculus #6592 Med:</span>
-                        <span className="text-amber-300 font-bold">Nov 2053</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Lag Behind 99th Pct:</span>
-                        <span className="text-amber-300">
-                          +
-                          {(
-                            dashboard.aggregate50thYear - dashboard.aggregate99thYear
-                          ).toFixed(1)}{" "}
-                          yrs
-                        </span>
-                      </div>
-                      <div className="flex justify-between pt-1 border-t border-slate-800">
-                        <span className="text-slate-300 font-bold">LEV Intercept:</span>
-                        <span className="text-amber-400 font-bold">
-                          {dashboard.aggregate50thFormatted}
-                        </span>
-                      </div>
-                    </div>
+                    <span className="text-[11px] font-mono font-bold text-emerald-300 tabular-nums">
+                      +{activePoa.daysGainedPerYear}d/yr ({activeShift} wk)
+                    </span>
                   </div>
 
-                  <footer className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/70">
-                    <span>Bio-Age at LEV (Age {currentAge}):</span>
-                    <strong className="font-mono text-amber-300 tabular-nums">
-                      ~{dashboard.cohorts.p50.biologicalAgeAtLev} yrs
-                    </strong>
-                  </footer>
-                </article>
+                  <p className="text-xs text-slate-300 leading-snug">
+                    {isTop1 ? (
+                      <>
+                        <strong className="text-violet-300">Top 1% (99th-Pct)</strong>{" "}
+                        ages{" "}
+                        <strong className="text-white tabular-nums">
+                          {activePoa.bioMonthsPerYear} bio-months
+                        </strong>{" "}
+                        per 12 calendar months (25th-75th IQR:{" "}
+                        <strong className="text-white">
+                          {activePoa.poaP25.toFixed(3)} - {activePoa.poaP75.toFixed(3)}
+                        </strong>
+                        ).
+                      </>
+                    ) : (
+                      <>
+                        <strong className="text-sky-300">Top 20% (80th-Pct)</strong>{" "}
+                        ages{" "}
+                        <strong className="text-white tabular-nums">
+                          {activePoa.bioMonthsPerYear} bio-months
+                        </strong>{" "}
+                        per 12 calendar months (25th-75th IQR:{" "}
+                        <strong className="text-white">
+                          {activePoa.poaP25.toFixed(3)} - {activePoa.poaP75.toFixed(3)}
+                        </strong>
+                        ).
+                      </>
+                    )}
+                  </p>
+                </div>
+
+                <FutureGraphProbabilityCurve
+                  p25Label={activePoa.poaP25.toFixed(3)}
+                  p50Label={activePoa.poaP50.toFixed(3)}
+                  p75Label={activePoa.poaP75.toFixed(3)}
+                  accentHex={isTop1 ? "#a855f7" : "#38bdf8"}
+                  iqrFillRgba={
+                    isTop1
+                      ? "rgba(168, 85, 247, 0.25)"
+                      : "rgba(56, 189, 248, 0.25)"
+                  }
+                  gradId="fg-poa-pdf"
+                />
+
+                <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-800/80 text-center">
+                  <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2">
+                    <div className="text-[10px] font-mono uppercase text-slate-400">
+                      25th Pct PoA
+                    </div>
+                    <div className="text-sm font-mono font-bold text-emerald-300 tabular-nums">
+                      {activePoa.poaP25.toFixed(3)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-slate-900/90 border border-violet-500/35 p-2">
+                    <div className="text-[10px] font-mono uppercase text-violet-300">
+                      50th Pct Median
+                    </div>
+                    <div className="text-sm font-mono font-bold text-white tabular-nums">
+                      {activePoa.poaP50.toFixed(3)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2">
+                    <div className="text-[10px] font-mono uppercase text-slate-400">
+                      75th Pct PoA
+                    </div>
+                    <div className="text-sm font-mono font-bold text-amber-300 tabular-nums">
+                      {activePoa.poaP75.toFixed(3)}
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
+
+        {/* Secondary Cohort Comparison Strip (Full Detail Mode) */}
+        {!isMinimal && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            <div className="rounded-xl bg-slate-950/75 border border-emerald-500/30 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+              <span className="text-slate-300">
+                Top 1% Bio-Age at LEV (Age {currentAge}):
+              </span>
+              <strong className="text-emerald-300 tabular-nums">
+                ~{dashboard.cohorts.p99.biologicalAgeAtLev} yrs ({dashboard.aggregate99thFormatted})
+              </strong>
+            </div>
+            <div className="rounded-xl bg-slate-950/75 border border-sky-500/30 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+              <span className="text-slate-300">
+                Top 20% Bio-Age at LEV (Age {currentAge}):
+              </span>
+              <strong className="text-sky-300 tabular-nums">
+                ~{dashboard.cohorts.p80.biologicalAgeAtLev} yrs ({dashboard.aggregate80thFormatted})
+              </strong>
+            </div>
+            <div className="rounded-xl bg-slate-950/75 border border-amber-500/30 border-dashed px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+              <span className="text-slate-300">
+                Population Mean (50th Cohort):
+              </span>
+              <strong className="text-amber-300 tabular-nums">
+                1.000 yr/yr • LEV {dashboard.aggregate50thFormatted}
+              </strong>
+            </div>
+          </div>
+        )}
       </header>
       )}
 
@@ -1781,9 +2011,29 @@ export function LevExplorer({
                   >
                     <div className="sm:col-span-4 flex items-center justify-between sm:pr-3">
                       <div>
-                        <span className="text-xs font-bold text-white block">
-                          {exp.expertName}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const expHandle = `lev_${exp.id.replace(
+                              /^exp-/,
+                              ""
+                            )}`;
+                            forecasterState.selectIndividualActor(
+                              expHandle,
+                              true
+                            );
+                            if (typeof window !== "undefined") {
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }
+                          }}
+                          className="text-left text-xs font-bold text-white hover:text-emerald-300 transition-colors flex items-center gap-1.5"
+                          title="Click to plot full trajectory & variance vs. Crowd Wisdom at top"
+                        >
+                          <span>{exp.expertName}</span>
+                          <span className="text-[10px] font-mono font-normal text-cyan-400">
+                            [View Curve ↑]
+                          </span>
+                        </button>
                         <span className="text-[10px] text-slate-400 block truncate max-w-[260px]">
                           {exp.roleAndAffiliation}
                         </span>

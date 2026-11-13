@@ -18,11 +18,13 @@ import {
   Download,
   Play,
   PlusCircle,
+  Scale,
 } from "lucide-react";
+import { ResolutionsAdminPanel } from "@/components/ResolutionsAdminPanel";
 
 export default function AdminDashboardPage() {
   const initialData = getInitialDataset();
-  const [activeTab, setActiveTab] = useState<"proposals" | "nodes" | "moderation" | "json">("proposals");
+  const [activeTab, setActiveTab] = useState<"proposals" | "nodes" | "moderation" | "json" | "resolutions">("proposals");
   const [proposals, setProposals] = useState<BranchProposal[]>(initialData.proposals);
   const [nodes, setNodes] = useState<FutureNode[]>(initialData.nodes);
   const [reports, setReports] = useState<ModerationReport[]>(initialData.moderationReports);
@@ -288,7 +290,21 @@ export default function AdminDashboardPage() {
             <FileJson className="w-4 h-4" />
             Scenario JSON Dry-Run & Diff
           </button>
+          <button
+            onClick={() => setActiveTab("resolutions")}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${
+              activeTab === "resolutions"
+                ? "bg-cyan-500 text-slate-950 font-semibold"
+                : "bg-slate-900 text-slate-300 hover:bg-slate-800"
+            }`}
+          >
+            <Scale className="w-4 h-4" />
+            Resolutions & Oracles
+          </button>
         </div>
+
+        {/* TAB: Resolutions & Oracles (Reputation settlement) */}
+        {activeTab === "resolutions" && <ResolutionsAdminPanel />}
 
         {/* TAB 1: Branch & Evidence Proposals */}
         {activeTab === "proposals" && (

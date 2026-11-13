@@ -7,9 +7,17 @@ import {
   submitArgumentItem,
   submitBranchProposal,
   submitForecastEvent,
+  submitForecasterGraphRuns,
 } from "@/lib/store";
 import { propagateGraphProbabilities } from "@/lib/probability-engine";
+import {
+  generatePromptPack,
+  parseAndValidateAgentResponse,
+  PromptPackOutputMode,
+  PromptPackScope,
+} from "@/lib/prompt-pack";
 import { ForecastLens } from "@/types/futuregraph";
+import { RegisteredGraphId } from "@/types/forecaster";
 
 const MCP_TOOLS = [
   {
@@ -142,6 +150,40 @@ const MCP_TOOLS = [
       },
     },
   },
+  {
+    name: "get_graph_prompt_pack",
+    description:
+      "Generate a self-contained conditional probability Prompt Pack for a focused branch, full graph, or all-site sweep across FutureGraph.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        graphId: { type: "string", default: "ai-2027" },
+        scope: { type: "string", enum: ["branch", "graph", "all_site"], default: "graph" },
+        branchNodeId: { type: "string" },
+        outputMode: { type: "string", enum: ["standard", "quick_pct"], default: "standard" },
+      },
+    },
+  },
+  {
+    name: "submit_graph_forecast_run",
+    description:
+      "Submit a complete conserved conditional probability distribution + WorldviewCard for any FutureGraph atlas and receive a SHA-256 receipt.",
+    inputSchema: {
+      type: "object",
+      required: ["graphId"],
+      properties: {
+        graphId: { type: "string" },
+        handle: { type: "string" },
+        displayName: { type: "string" },
+        worldview: { type: "object" },
+        rootPriors: { type: "object" },
+        conditionalSplits: { type: "object" },
+        forkRationales: { type: "object" },
+        levForecast: { type: "object" },
+        headlineSummary: { type: "string" },
+      },
+    },
+  },
 ];
 
 export async function GET() {
@@ -181,8 +223,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const toolName = method === "tools/call" ? params.name : method;
-    const args = method === "tools/call" ? params.arguments || {} : params;
+    const toolName =
+      body.tool || (method === "tools/call" ? params.name : method);
+    const args =
+      body.arguments ||
+      (method === "tools/call" ? params.arguments || {} : params);
 
     switch (toolName) {
       case "list_scenarios": {
@@ -306,7 +351,8 @@ export async function POST(request: NextRequest) {
         );
         return NextResponse.json({ jsonrpc: "2.0", id, result: { comparison: comp } });
       }
-      case "fork_scenario": {
+      case "fork_scenario":
+      case "create_fork": {
         const res = await createScenarioFork({
           title: args.title,
           rationale: args.rationale,
@@ -314,6 +360,45 @@ export async function POST(request: NextRequest) {
           nodeProbabilityOverrides: args.nodeProbabilityOverrides || {},
         });
         return NextResponse.json({ jsonrpc: "2.0", id, result: res });
+      }
+      case "get_graph_prompt_pack": {
+        const { origin } = new URL(request.url);
+        const pack = generatePromptPack({
+          graphId: (args.graphId as RegisteredGraphId) || "ai-2027",
+          scope: (args.scope as PromptPackScope) || "graph",
+          branchNodeId: args.branchNodeId || null,
+          outputMode: (args.outputMode as PromptPackOutputMode) || "standard",
+          actorHandle: args.handle || "mcp_agent",
+          actorDisplayName: args.displayName || "MCP Forecaster Agent",
+          worldview: args.worldview,
+          baseOrigin: origin,
+        });
+        return NextResponse.json({ jsonrpc: "2.0", id, result: pack });
+      }
+      case "submit_graph_forecast_run": {
+        const parsed = parseAndValidateAgentResponse({
+          parsedJson: args,
+          defaultGraphId: (args.graphId as RegisteredGraphId) || "ai-2027",
+          fallbackHandle: args.handle || "mcp_worldview_agent",
+          fallbackDisplayName: args.displayName || "MCP Worldview Agent",
+          fallbackActorType: "ai_agent",
+        });
+        if (!parsed.ok) {
+          return NextResponse.json({
+            jsonrpc: "2.0",
+            id,
+            error: { code: -32602, message: parsed.errors.join(" ") },
+          });
+        }
+        const saved = await submitForecasterGraphRuns({
+          handle: args.handle || parsed.actorPatch?.handle || "mcp_worldview_agent",
+          displayName:
+            args.displayName || parsed.actorPatch?.displayName || "MCP Worldview Agent",
+          actorType: "ai_agent",
+          worldview: args.worldview || parsed.actorPatch?.worldview,
+          runs: parsed.runs,
+        });
+        return NextResponse.json({ jsonrpc: "2.0", id, result: saved });
       }
       default:
         return NextResponse.json({

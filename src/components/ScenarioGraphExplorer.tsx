@@ -3,21 +3,27 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowDown,
   ArrowUp,
   ArrowUpRight,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Eye,
   Focus,
   GitBranch,
   LayoutGrid,
   Maximize2,
+  Minimize2,
   Minus,
   Network,
   Play,
   Plus,
   RotateCcw,
+  RotateCw,
   Sliders,
+  Smartphone,
   Sparkles,
   Trophy,
 } from "lucide-react";
@@ -32,6 +38,7 @@ import {
   Scenario,
 } from "@/types/futuregraph";
 import { propagateGraphProbabilities } from "@/lib/probability-engine";
+import { WorldviewShareButton } from "@/components/WorldviewShareButton";
 import { NodeAuditPanel } from "@/components/NodeAuditPanel";
 import {
   AI_2040_RIVER_SPECS,
@@ -46,6 +53,10 @@ import {
 import { resolveRiverLabelPlacements } from "@/lib/river-layout";
 import { NatureOfRealitySankey } from "@/components/NatureOfRealitySankey";
 import { BranchingTreePresenter } from "@/components/BranchingTreePresenter";
+import { UnifiedForecasterBar } from "@/components/UnifiedForecasterBar";
+import { useGraphForecaster } from "@/hooks/useGraphForecaster";
+import { useMobileGraphViewport } from "@/hooks/useMobileGraphViewport";
+import { RegisteredGraphId } from "@/types/forecaster";
 
 /**
  * Definition of a node in the continuous Branching Probability River.
@@ -481,6 +492,37 @@ export function ScenarioGraphExplorer({
   >({});
   const [outcomesPanelOpen, setOutcomesPanelOpen] = useState(true);
   const [isPresentingTree, setIsPresentingTree] = useState(false);
+  const [mobileStageIndex, setMobileStageIndex] = useState<number | null>(null);
+
+  // Auto-collapse "Projected End Results (100%)" on small phones (< 640px) so the tree opens unobstructed
+  useEffect(() => {
+    if (window.innerWidth < 640) {
+      setOutcomesPanelOpen(false);
+    }
+  }, []);
+
+  const activeTimelineCols = useMemo(() => {
+    if (activeScenarioSlug === "ai-2050") {
+      return ai2050DepthMode === "comprehensive"
+        ? AI_2050_COMPREHENSIVE_TIMELINE_COLS
+        : AI_2050_SIMPLE_TIMELINE_COLS;
+    }
+    if (activeScenarioSlug === "ai-2040") {
+      return AI_2040_TIMELINE_COLS;
+    }
+    return [
+      { x: 95, year: "2025" },
+      { x: 295, year: "2026" },
+      { x: 505, year: "EARLY 2027" },
+      { x: 720, year: "MID 2027" },
+      { x: 935, year: "SEP 2027" },
+      { x: 1125, year: "OCT 2027 FORK" },
+      { x: 1315, year: "NOV 2027" },
+      { x: 1475, year: "2028" },
+      { x: 1625, year: "2029" },
+      { x: 1765, year: "2030" },
+    ];
+  }, [activeScenarioSlug, ai2050DepthMode]);
 
   const activeRiverSpecs = useMemo(() => {
     if (activeScenarioSlug === "ai-2050") {
@@ -706,6 +748,19 @@ export function ScenarioGraphExplorer({
     };
   }, [selectedLens]);
 
+  const activeRegisteredGraphId: RegisteredGraphId = useMemo(() => {
+    if (activeScenarioSlug === "ai-2050") {
+      return ai2050DepthMode === "comprehensive"
+        ? "ai-2050-comprehensive"
+        : "ai-2050-simple";
+    }
+    return activeScenarioSlug === "ai-2040" ? "ai-2040" : "ai-2027";
+  }, [activeScenarioSlug, ai2050DepthMode]);
+
+  const forecasterState = useGraphForecaster({
+    graphId: activeRegisteredGraphId,
+  });
+
   /**
    * Compute mathematically consistent conditional splits (always summing to 100% at every fork)
    * and cumulative overall probabilities P(overall) = P(parent overall) * P(branch | parent).
@@ -730,6 +785,15 @@ export function ScenarioGraphExplorer({
       const rawProbs = siblings.map((s) => {
         if (conditionalOverrides[s.id] !== undefined) {
           return conditionalOverrides[s.id];
+        }
+        if (
+          forecasterState.activeLensMode !== "default_creator" &&
+          forecasterState.activeDistribution.normalizedConditionalSplits[s.id] !==
+            undefined
+        ) {
+          return forecasterState.activeDistribution.normalizedConditionalSplits[
+            s.id
+          ];
         }
         // AI 2027 lens shifts
         if (s.id === "river-2027-mar-sc") return lensShiftMultiplier.sc;
@@ -801,7 +865,13 @@ export function ScenarioGraphExplorer({
       overallProb: overallMap.get(spec.id) ?? spec.defaultConditionalProb,
       isTerminalOutcome: !childrenByParent.has(spec.id),
     }));
-  }, [activeRiverSpecs, conditionalOverrides, lensShiftMultiplier]);
+  }, [
+    activeRiverSpecs,
+    conditionalOverrides,
+    forecasterState.activeDistribution.normalizedConditionalSplits,
+    forecasterState.activeLensMode,
+    lensShiftMultiplier,
+  ]);
 
   const resolvedLabelPlacements = useMemo(() => {
     const summaryMap = new Map<
@@ -954,33 +1024,85 @@ export function ScenarioGraphExplorer({
     []
   );
 
-  // Pan camera by screen pixel deltas (dxPx, dyPx)
-  const panByPixels = useCallback((dxPx: number, dyPx: number) => {
-    const el = diagramViewportRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
+  const [isRiverFullScreen, setIsRiverFullScreen] = useState(false);
+  const mobileViewport = useMobileGraphViewport(isRiverFullScreen);
 
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
-    }
+  const stepMobileStage = useCallback(
+    (delta: -1 | 1) => {
+      const len = activeTimelineCols.length;
+      if (len === 0) return;
+      const nextIdx =
+        mobileStageIndex === null
+          ? delta > 0
+            ? 0
+            : len - 1
+          : (mobileStageIndex + delta + len) % len;
+      setMobileStageIndex(nextIdx);
+      const col = activeTimelineCols[nextIdx];
+      const stageW = 740;
+      const stageH = 600;
+      animateCameraTo({
+        x: clamp(col.x - 230, -50, FULL_VIEWBOX.w - stageW + 50),
+        y: 65,
+        w: stageW,
+        h: stageH,
+      });
+    },
+    [activeTimelineCols, mobileStageIndex, animateCameraTo]
+  );
 
-    setCamera((prev) => {
-      const unitsPerPx = Math.max(prev.w / rect.width, prev.h / rect.height);
-      const nextX = clamp(
-        prev.x - dxPx * unitsPerPx,
-        -320,
-        FULL_VIEWBOX.w - prev.w * 0.2
+  // Pan camera by graph-local pixel deltas (dxPx, dyPx)
+  const panByPixels = useCallback(
+    (dxPx: number, dyPx: number) => {
+      const el = diagramViewportRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+
+      const localWidth = Math.max(
+        1,
+        mobileViewport.isRotatedCssLandscape ? rect.height : rect.width
       );
-      const nextY = clamp(
-        prev.y - dyPx * unitsPerPx,
-        -220,
-        FULL_VIEWBOX.h - prev.h * 0.2
+      const localHeight = Math.max(
+        1,
+        mobileViewport.isRotatedCssLandscape ? rect.width : rect.height
       );
-      return { ...prev, x: nextX, y: nextY };
-    });
-  }, []);
+
+      setCamera((prev) => {
+        const unitsPerPx = Math.max(prev.w / localWidth, prev.h / localHeight);
+        const nextX = clamp(
+          prev.x - dxPx * unitsPerPx,
+          -320,
+          FULL_VIEWBOX.w - prev.w * 0.2
+        );
+        const nextY = clamp(
+          prev.y - dyPx * unitsPerPx,
+          -220,
+          FULL_VIEWBOX.h - prev.h * 0.2
+        );
+        return { ...prev, x: nextX, y: nextY };
+      });
+    },
+    [mobileViewport.isRotatedCssLandscape]
+  );
+
+  // Allow Escape to exit Full Screen River mode cleanly (unless a modal dialog is open)
+  useEffect(() => {
+    if (!isRiverFullScreen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (document.querySelector("dialog[open]")) return;
+        setIsRiverFullScreen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isRiverFullScreen]);
 
   // Native device wheel / trackpad pinch-to-zoom & Safari gesture support on the diagram viewport
   useEffect(() => {
@@ -992,19 +1114,28 @@ export function ScenarioGraphExplorer({
       if ((e.target as HTMLElement).closest("[data-outcomes-panel]")) {
         return;
       }
+      // In standard stacked layout, let plain vertical scrolling scroll naturally to the Node Studio underneath;
+      // still intercept pinch-to-zoom (ctrlKey/metaKey) or any wheel zoom when in Full Screen mode.
+      if (!isRiverFullScreen && !e.ctrlKey && !e.metaKey) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
 
       const rect = el.getBoundingClientRect();
-      const relX = clamp((e.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
-      const relY = clamp((e.clientY - rect.top) / Math.max(1, rect.height), 0, 1);
+      const { relX, relY } = mobileViewport.mapScreenPointToRelative(
+        e.clientX,
+        e.clientY,
+        rect
+      );
 
       if (e.ctrlKey || e.metaKey || Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
         const sensitivity = e.ctrlKey || e.metaKey ? 0.0085 : 0.0022;
         const factor = Math.exp(e.deltaY * sensitivity);
         zoomAtPoint(factor, relX, relY);
       } else {
-        panByPixels(-e.deltaX, -e.deltaY);
+        const { dx, dy } = mobileViewport.mapScreenDelta(-e.deltaX, -e.deltaY);
+        panByPixels(dx, dy);
       }
     };
 
@@ -1024,14 +1155,14 @@ export function ScenarioGraphExplorer({
       const ratio = lastGestureScale / ge.scale;
       lastGestureScale = ge.scale;
       const rect = el.getBoundingClientRect();
-      const relX =
-        ge.clientX !== undefined
-          ? clamp((ge.clientX - rect.left) / Math.max(1, rect.width), 0, 1)
-          : 0.5;
-      const relY =
-        ge.clientY !== undefined
-          ? clamp((ge.clientY - rect.top) / Math.max(1, rect.height), 0, 1)
-          : 0.5;
+      const { relX, relY } =
+        ge.clientX !== undefined && ge.clientY !== undefined
+          ? mobileViewport.mapScreenPointToRelative(
+              ge.clientX,
+              ge.clientY,
+              rect
+            )
+          : { relX: 0.5, relY: 0.5 };
       zoomAtPoint(ratio, relX, relY);
     };
     const onGestureEnd = (e: Event) => {
@@ -1049,9 +1180,16 @@ export function ScenarioGraphExplorer({
       el.removeEventListener("gesturechange", onGestureChange);
       el.removeEventListener("gestureend", onGestureEnd);
     };
-  }, [zoomAtPoint, panByPixels, viewMode]);
+  }, [
+    zoomAtPoint,
+    panByPixels,
+    viewMode,
+    isRiverFullScreen,
+    mobileViewport.mapScreenPointToRelative,
+    mobileViewport.mapScreenDelta,
+  ]);
 
-  // Mobile touchscreen 2-finger pinch-to-zoom & 1-finger pan on the diagram
+  // Mobile touchscreen 2-finger pinch-to-zoom & scroll-safe 1-finger pan on the diagram
   useEffect(() => {
     const el = diagramViewportRef.current;
     if (!el) return;
@@ -1061,7 +1199,6 @@ export function ScenarioGraphExplorer({
         return;
       }
       if (e.touches.length === 2) {
-        e.preventDefault();
         const t0 = e.touches[0];
         const t1 = e.touches[1];
         const dist = Math.hypot(
@@ -1111,19 +1248,18 @@ export function ScenarioGraphExplorer({
 
         if (state.mode === "pinch" && state.lastDist > 0) {
           const rect = el.getBoundingClientRect();
-          const relX = clamp(
-            (midX - rect.left) / Math.max(1, rect.width),
-            0,
-            1
-          );
-          const relY = clamp(
-            (midY - rect.top) / Math.max(1, rect.height),
-            0,
-            1
+          const { relX, relY } = mobileViewport.mapScreenPointToRelative(
+            midX,
+            midY,
+            rect
           );
           const scaleFactor = state.lastDist / dist;
           zoomAtPoint(scaleFactor, relX, relY);
-          panByPixels(midX - state.lastX, midY - state.lastY);
+          const { dx, dy } = mobileViewport.mapScreenDelta(
+            midX - state.lastX,
+            midY - state.lastY
+          );
+          panByPixels(dx, dy);
         }
 
         state.mode = "pinch";
@@ -1131,18 +1267,31 @@ export function ScenarioGraphExplorer({
         state.lastX = midX;
         state.lastY = midY;
         state.moved = true;
+        didDragMoveRef.current = true;
       } else if (e.touches.length === 1 && state.mode === "pan") {
         const t0 = e.touches[0];
-        const dx = t0.clientX - state.lastX;
-        const dy = t0.clientY - state.lastY;
-        const totalMove = Math.hypot(
-          t0.clientX - state.startX,
-          t0.clientY - state.startY
-        );
+        const rawDx = t0.clientX - state.lastX;
+        const rawDy = t0.clientY - state.lastY;
+        const totalDx = t0.clientX - state.startX;
+        const totalDy = t0.clientY - state.startY;
+        const totalMove = Math.hypot(totalDx, totalDy);
+
+        // In inline stacked mode at Fit-All scale, allow vertical 1-finger swipe to scroll page naturally
+        // down to #river-node-studio instead of trapping vertical scroll!
+        const isZoomedIn = cameraRef.current.w < FULL_VIEWBOX.w * 0.94;
+        if (
+          !isRiverFullScreen &&
+          !isZoomedIn &&
+          Math.abs(totalDy) > Math.abs(totalDx) * 1.15
+        ) {
+          return;
+        }
 
         if (totalMove > 5) {
           e.preventDefault();
           state.moved = true;
+          didDragMoveRef.current = true;
+          const { dx, dy } = mobileViewport.mapScreenDelta(rawDx, rawDy);
           panByPixels(dx, dy);
           state.lastX = t0.clientX;
           state.lastY = t0.clientY;
@@ -1161,16 +1310,25 @@ export function ScenarioGraphExplorer({
       }
     };
 
-    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
 
     return () => {
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [zoomAtPoint, panByPixels, viewMode]);
+  }, [
+    zoomAtPoint,
+    panByPixels,
+    viewMode,
+    isRiverFullScreen,
+    mobileViewport.mapScreenPointToRelative,
+    mobileViewport.mapScreenDelta,
+  ]);
 
   // When a user adjusts a branch's conditional probability, automatically rebalance its sibling branches so they sum to 100%
   const handleSetBranchConditional = (
@@ -1528,22 +1686,23 @@ export function ScenarioGraphExplorer({
 
   return (
     <div
-      className={`flex flex-col h-[calc(100dvh-50px)] overflow-hidden select-none ${
+      className={`flex flex-col min-h-[calc(100dvh-50px)] select-none ${
         isLightMode
           ? "bg-[#f8f6f0] text-slate-900"
           : "bg-[#070b12] text-slate-100"
       }`}
     >
-      {/* Featured Branch & Other Available Branching Trees Strip */}
-      <div className="shrink-0 border-b border-slate-800/90 bg-slate-950 px-4 py-2">
-        <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-300">
-              <Sparkles className="h-3 w-3 text-amber-400" />
-              <span>Branching Trees</span>
+      {/* Compact Single-Row Branching Trees Strip (Swipeable single row on mobile) */}
+      <div className="shrink-0 border-b border-slate-800/90 bg-slate-950 px-3 sm:px-4 py-1.5">
+        <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-2 overflow-x-auto fg-no-scrollbar lg:flex-wrap lg:overflow-visible">
+          <div className="flex items-center gap-1.5 shrink-0 lg:flex-wrap">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-amber-300 whitespace-nowrap">
+              <Sparkles className="h-3 w-3 text-amber-400" aria-hidden="true" />
+              <span className="hidden sm:inline">Branching Trees</span>
+              <span className="sm:hidden">Trees</span>
             </span>
 
-            {/* 1. Featured Branch: AI 2050 (Five Worlds of AI - Simple & Comprehensive) */}
+            {/* 1. Featured Branch: AI 2050 (Simple 5-World Tree) */}
             <button
               type="button"
               onClick={() => {
@@ -1551,9 +1710,11 @@ export function ScenarioGraphExplorer({
                 setAi2050DepthMode("simple");
                 setSelectedNodeId(null);
                 setConditionalOverrides({});
+                setMobileStageIndex(null);
+                setIsRiverFullScreen(false);
                 animateCameraTo(FULL_VIEWBOX);
               }}
-              className={`group flex items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-xs transition-all ${
+              className={`group inline-flex min-h-[34px] shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-left text-xs whitespace-nowrap transition-all ${
                 activeScenarioSlug === "ai-2050" && ai2050DepthMode === "simple"
                   ? "border-sky-400 bg-sky-500/20 text-white shadow-sm"
                   : "border-slate-800 bg-slate-900/90 text-slate-300 hover:border-sky-500/50 hover:text-white"
@@ -1562,14 +1723,9 @@ export function ScenarioGraphExplorer({
               <span className="rounded bg-sky-400 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-slate-950">
                 Featured
               </span>
-              <div>
-                <div className="font-bold leading-tight">
-                  AI 2050: Five Worlds (Simple 5-World Tree)
-                </div>
-                <div className="hidden xl:block text-[10px] text-slate-400">
-                  Metaculus #20683 • Futurama 45% • Dystopia 24% • Singularia 17%
-                </div>
-              </div>
+              <span className="font-bold leading-tight">
+                AI 2050: Five Worlds
+              </span>
             </button>
 
             {/* 2. AI 2050 Comprehensive Path (Why + 10 Sub-Worlds) */}
@@ -1580,9 +1736,11 @@ export function ScenarioGraphExplorer({
                 setAi2050DepthMode("comprehensive");
                 setSelectedNodeId(null);
                 setConditionalOverrides({});
+                setMobileStageIndex(null);
+                setIsRiverFullScreen(false);
                 animateCameraTo(FULL_VIEWBOX);
               }}
-              className={`group flex items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-xs transition-all ${
+              className={`group inline-flex min-h-[34px] shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-left text-xs whitespace-nowrap transition-all ${
                 activeScenarioSlug === "ai-2050" &&
                 ai2050DepthMode === "comprehensive"
                   ? "border-violet-400 bg-violet-500/20 text-white shadow-sm"
@@ -1592,14 +1750,9 @@ export function ScenarioGraphExplorer({
               <span className="rounded bg-violet-400/20 border border-violet-400/40 px-1.5 py-0.5 text-[10px] font-mono font-bold text-violet-300">
                 22 Nodes
               </span>
-              <div>
-                <div className="font-bold leading-tight">
-                  AI 2050: Deep Path (Why + 10 Sub-Worlds)
-                </div>
-                <div className="hidden xl:block text-[10px] text-slate-400">
-                  Causal Midpoints + 10 Sub-Worlds + Cited Forum Arguments
-                </div>
-              </div>
+              <span className="font-bold leading-tight">
+                AI 2050: Deep Path
+              </span>
             </button>
 
             {/* 3. AI 2027 Fast Takeoff Branching River */}
@@ -1609,9 +1762,11 @@ export function ScenarioGraphExplorer({
                 setActiveScenarioSlug("ai-2027");
                 setSelectedNodeId(null);
                 setConditionalOverrides({});
+                setMobileStageIndex(null);
+                setIsRiverFullScreen(false);
                 animateCameraTo(FULL_VIEWBOX);
               }}
-              className={`group flex items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-xs transition-all ${
+              className={`group inline-flex min-h-[34px] shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-left text-xs whitespace-nowrap transition-all ${
                 activeScenarioSlug === "ai-2027"
                   ? "border-amber-400 bg-amber-500/20 text-white shadow-sm"
                   : "border-slate-800 bg-slate-900/90 text-slate-300 hover:border-amber-500/50 hover:text-white"
@@ -1620,14 +1775,9 @@ export function ScenarioGraphExplorer({
               <span className="rounded bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 text-[10px] font-mono font-bold text-amber-300">
                 2025–2030
               </span>
-              <div>
-                <div className="font-bold leading-tight">
-                  AI 2027: Fast Takeoff & Oversight Fork
-                </div>
-                <div className="hidden xl:block text-[10px] text-slate-400">
-                  Keep Racing (52%) vs. Slow Down & Verify (36%)
-                </div>
-              </div>
+              <span className="font-bold leading-tight">
+                AI 2027: Fast Takeoff
+              </span>
             </button>
 
             {/* 4. AI 2040 Plan A vs Plans B-S Crossroads */}
@@ -1637,9 +1787,11 @@ export function ScenarioGraphExplorer({
                 setActiveScenarioSlug("ai-2040");
                 setSelectedNodeId(null);
                 setConditionalOverrides({});
+                setMobileStageIndex(null);
+                setIsRiverFullScreen(false);
                 animateCameraTo(FULL_VIEWBOX);
               }}
-              className={`group flex items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-xs transition-all ${
+              className={`group inline-flex min-h-[34px] shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-left text-xs whitespace-nowrap transition-all ${
                 activeScenarioSlug === "ai-2040"
                   ? "border-emerald-400 bg-emerald-500/20 text-white shadow-sm"
                   : "border-slate-800 bg-slate-900/90 text-slate-300 hover:border-emerald-500/50 hover:text-white"
@@ -1648,78 +1800,71 @@ export function ScenarioGraphExplorer({
               <span className="rounded bg-emerald-500/20 border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-mono font-bold text-emerald-300">
                 2026–2040
               </span>
-              <div>
-                <div className="font-bold leading-tight">
-                  AI 2040: Plan A vs. Plans B–S
-                </div>
-                <div className="hidden xl:block text-[10px] text-slate-400">
-                  2029 Crossroads & 2035 Expert Pause vs. Containment
-                </div>
-              </div>
+              <span className="font-bold leading-tight">
+                AI 2040: Plan A vs. B–S
+              </span>
             </button>
+
             {/* 5. Nature of Reality: 7-Epoch Gradient Sankey & Deep-Dive Studio */}
             <button
               type="button"
               onClick={() => {
                 setActiveScenarioSlug("nature-of-reality");
                 setSelectedNodeId(null);
+                setMobileStageIndex(null);
+                setIsRiverFullScreen(false);
               }}
-              className={`group flex items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-xs transition-all ${
+              className={`group inline-flex min-h-[34px] shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-left text-xs whitespace-nowrap transition-all ${
                 activeScenarioSlug === "nature-of-reality"
                   ? "border-fuchsia-400 bg-fuchsia-500/20 text-white shadow-sm"
                   : "border-slate-800 bg-slate-900/90 text-slate-300 hover:border-fuchsia-500/50 hover:text-white"
               }`}
             >
-              <span className="rounded bg-gradient-to-r from-indigo-500 via-pink-500 to-amber-400 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-white">
+              <span className="rounded bg-gradient-to-r from-indigo-500 via-pink-500 to-amber-400 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-white keep-white">
                 7-Epoch Sankey
               </span>
-              <div>
-                <div className="font-bold leading-tight">
-                  Nature of Reality: Probabilistic Breakdown
-                </div>
-                <div className="hidden xl:block text-[10px] text-slate-400">
-                  Before Our Universe → Death → Simulation → Cosmic Fate (43 Nodes)
-                </div>
-              </div>
+              <span className="font-bold leading-tight">
+                Nature of Reality
+              </span>
             </button>
           </div>
 
           {/* Direct Route Links to Standalone Scenario Pages & Counterfactual Forks */}
-          <div className="hidden lg:flex items-center gap-1.5 text-xs">
+          <div className="hidden 2xl:flex items-center gap-1.5 text-xs">
             <Link
               href="/scenarios/nature-of-reality"
-              className="inline-flex items-center gap-1 rounded-lg border border-fuchsia-500/40 bg-fuchsia-950/30 px-2.5 py-1 text-[11px] font-bold text-fuchsia-300 hover:border-fuchsia-400 hover:text-fuchsia-200"
+              className="inline-flex items-center gap-1 rounded-lg border border-fuchsia-500/40 bg-fuchsia-950/30 px-2 py-0.5 text-[11px] font-bold text-fuchsia-300 hover:border-fuchsia-400 hover:text-fuchsia-200"
             >
               <span>/nature-of-reality</span>
-              <ArrowUpRight className="h-3 w-3" />
+              <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
             </Link>
             <Link
               href="/scenarios/ai-2050"
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-sky-300 hover:border-sky-500/40 hover:text-sky-200"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-sky-300 hover:border-sky-500/40 hover:text-sky-200"
             >
               <span>/ai-2050</span>
-              <ArrowUpRight className="h-3 w-3" />
+              <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
             </Link>
             <Link
               href="/scenarios/ai-2027"
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-amber-300 hover:border-amber-500/40 hover:text-amber-200"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-amber-300 hover:border-amber-500/40 hover:text-amber-200"
             >
               <span>/ai-2027</span>
-              <ArrowUpRight className="h-3 w-3" />
+              <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
             </Link>
             <Link
               href="/scenarios/ai-2040"
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-emerald-300 hover:border-emerald-500/40 hover:text-emerald-200"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-emerald-300 hover:border-emerald-500/40 hover:text-emerald-200"
             >
               <span>/ai-2040</span>
-              <ArrowUpRight className="h-3 w-3" />
+              <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
             </Link>
             <Link
               href="/scenarios/ai-2027/forks/fork-hardware-bottleneck-2029"
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-violet-300 hover:border-violet-500/40 hover:text-violet-200"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-violet-300 hover:border-violet-500/40 hover:text-violet-200"
             >
               <span>Hardware Fork</span>
-              <ArrowUpRight className="h-3 w-3" />
+              <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
             </Link>
           </div>
         </div>
@@ -1728,13 +1873,113 @@ export function ScenarioGraphExplorer({
       {activeScenarioSlug === "nature-of-reality" ? (
         <NatureOfRealitySankey />
       ) : (
-        <>
-          {/* Clean Single-Row Subbar */}
-          <div className="shrink-0 border-b border-slate-800/80 bg-slate-950/95 px-4 py-1.5">
-        <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Instant Scenario Switcher Pill */}
-            <div className="inline-flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5 text-xs">
+        <div
+          className={
+            isRiverFullScreen
+              ? mobileViewport.isRotatedCssLandscape
+                ? `fg-mobile-landscape-shell z-50 flex flex-col overflow-clip select-none ${
+                    isLightMode
+                      ? "bg-[#f8f6f0] text-slate-900"
+                      : "bg-[#070b12] text-slate-100"
+                  }`
+                : `fg-safe-fullscreen fixed inset-0 z-50 flex flex-col h-[100dvh] w-full overflow-clip select-none ${
+                    isLightMode
+                      ? "bg-[#f8f6f0] text-slate-900"
+                      : "bg-[#070b12] text-slate-100"
+                  }`
+              : "flex flex-col w-full"
+          }
+        >
+          {isRiverFullScreen ? (
+            <div className="shrink-0 border-b border-slate-800 bg-slate-950/95 px-3 sm:px-4 py-1.5">
+              <div className="mx-auto flex max-w-[1920px] items-center justify-between gap-2 overflow-x-auto fg-no-scrollbar">
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="rounded-md bg-indigo-600 px-2 py-0.5 text-[10px] font-extrabold uppercase text-white keep-white whitespace-nowrap">
+                    Full Screen Branching Tree
+                  </span>
+                  <span className="hidden sm:inline text-xs sm:text-sm font-extrabold text-white whitespace-nowrap">
+                    {activeScenarioSlug === "ai-2050"
+                      ? ai2050DepthMode === "comprehensive"
+                        ? "AI 2050: Deep Path (Why + 10 Sub-Worlds)"
+                        : "AI 2050: Five Worlds"
+                      : activeScenarioSlug === "ai-2040"
+                      ? "AI 2040: Plan A vs. Plans B–S"
+                      : "AI 2027: Fast Takeoff & Oversight Fork"}
+                  </span>
+                  <span className="hidden lg:inline text-xs font-mono text-emerald-300 whitespace-nowrap">
+                    •{" "}
+                    {forecasterState.activeLensMode === "individual_actor"
+                      ? `${forecasterState.selectedActor?.displayName} (@${forecasterState.selectedActor?.handle})`
+                      : forecasterState.activeLensMode === "crowd_wisdom"
+                      ? `Crowd Wisdom (${forecasterState.crowdMode.replace("_", " ")})`
+                      : forecasterState.graphSpec?.defaultBaselineLabel ??
+                        "Default Baseline"}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  {mobileViewport.isMobile && mobileViewport.isPortrait && (
+                    <button
+                      type="button"
+                      aria-pressed={mobileViewport.preferHorizontalFullScreen}
+                      onClick={mobileViewport.toggleHorizontalFullScreen}
+                      className="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-amber-400/60 bg-amber-500/20 px-2.5 py-1 text-xs font-bold text-amber-200 whitespace-nowrap"
+                    >
+                      {mobileViewport.preferHorizontalFullScreen ? (
+                        <>
+                          <Smartphone
+                            className="h-3.5 w-3.5 text-amber-300"
+                            aria-hidden="true"
+                          />
+                          <span>Portrait View</span>
+                        </>
+                      ) : (
+                        <>
+                          <RotateCw
+                            className="h-3.5 w-3.5 text-amber-300"
+                            aria-hidden="true"
+                          />
+                          <span>Horizontal View</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    aria-pressed={forecasterState.showVarianceFromCrowd}
+                    onClick={forecasterState.toggleVarianceFromCrowd}
+                    className={`inline-flex min-h-[34px] items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors ${
+                      forecasterState.showVarianceFromCrowd
+                        ? "border-sky-400 bg-sky-500/20 text-sky-200"
+                        : "border-slate-700 bg-slate-900 text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    <span>Δ vs. Crowd</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsRiverFullScreen(false)}
+                    className="inline-flex min-h-[34px] items-center gap-1.5 rounded-xl border border-indigo-400/80 bg-indigo-600 hover:bg-indigo-500 px-3 sm:px-3.5 py-1 text-xs font-extrabold text-white keep-white shadow-md whitespace-nowrap transition-colors"
+                  >
+                    <Minimize2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>
+                      Exit Full Screen
+                      <span className="hidden sm:inline"> (Esc)</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+          {/* Clean Single-Row Subbar (Swipeable single row on mobile) */}
+          <div className="shrink-0 border-b border-slate-800/80 bg-slate-950/95 px-3 sm:px-4 py-1.5">
+        <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-2 overflow-x-auto fg-no-scrollbar lg:flex-wrap lg:overflow-visible">
+          <div className="flex items-center gap-2 shrink-0 lg:flex-wrap">
+            {/* Instant Scenario Switcher Pill (Desktop/Tablet; mobile uses top Branching Trees strip) */}
+            <div className="hidden md:inline-flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5 text-xs shrink-0 whitespace-nowrap">
               <button
                 type="button"
                 onClick={() => {
@@ -1925,9 +2170,23 @@ export function ScenarioGraphExplorer({
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0 lg:flex-wrap">
+            {/* Prominent Full Screen View Action Button (First in toolbar for 1-tap horizontal exploration) */}
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("river");
+                setIsRiverFullScreen(true);
+              }}
+              className="inline-flex min-h-[34px] shrink-0 items-center gap-1.5 rounded-xl border border-indigo-400/90 bg-indigo-600 hover:bg-indigo-500 px-3 sm:px-3.5 py-1 text-xs font-extrabold text-white keep-white shadow-md shadow-indigo-950/50 whitespace-nowrap transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+            >
+              <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sm:hidden">Horizontal Full Screen</span>
+              <span className="hidden sm:inline">Full Screen View</span>
+            </button>
+
             {/* Toggle River Thickness Mode */}
-            <div className="inline-flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5 text-xs">
+            <div className="inline-flex shrink-0 items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5 text-xs whitespace-nowrap">
               <button
                 type="button"
                 onClick={() => setThicknessMode("overall")}
@@ -1953,8 +2212,8 @@ export function ScenarioGraphExplorer({
             </div>
 
             {/* Lens Selector */}
-            <div className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-0.5">
-              <Eye className="h-3.5 w-3.5 text-amber-400" />
+            <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-0.5 whitespace-nowrap">
+              <Eye className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               <select
                 aria-label="Select Forecast Lens"
                 value={selectedLens}
@@ -1990,7 +2249,7 @@ export function ScenarioGraphExplorer({
               <button
                 type="button"
                 onClick={() => setConditionalOverrides({})}
-                className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/25"
+                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/25 whitespace-nowrap"
               >
                 <RotateCcw className="h-3 w-3" />
                 Reset Splits
@@ -1998,7 +2257,7 @@ export function ScenarioGraphExplorer({
             )}
 
             {/* River vs Table View */}
-            <div className="inline-flex rounded-lg border border-slate-800 bg-slate-900 p-0.5">
+            <div className="inline-flex shrink-0 rounded-lg border border-slate-800 bg-slate-900 p-0.5 whitespace-nowrap">
               <button
                 type="button"
                 onClick={() => setViewMode("river")}
@@ -2029,14 +2288,31 @@ export function ScenarioGraphExplorer({
             <button
               type="button"
               onClick={() => setIsPresentingTree(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/60 bg-gradient-to-r from-amber-500/20 to-sky-500/20 px-2.5 py-1 text-xs font-extrabold text-amber-200 hover:border-amber-300 hover:text-white shadow-sm transition-all"
+              className="inline-flex min-h-[34px] shrink-0 items-center gap-1.5 rounded-lg border border-amber-400/60 bg-gradient-to-r from-amber-500/20 to-sky-500/20 px-2.5 py-1 text-xs font-extrabold text-amber-200 hover:border-amber-300 hover:text-white shadow-sm whitespace-nowrap transition-all"
             >
-              <Play className="h-3.5 w-3.5 text-amber-400" />
+              <Play className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
               <span>Present Tree</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* Unified Forecaster Agents, Crowd Wisdom & Variance Strip */}
+      <div className="shrink-0 border-b border-slate-800/80 bg-slate-950/95 px-3 sm:px-4 py-1">
+        <div className="mx-auto max-w-[1800px]">
+          <UnifiedForecasterBar
+            forecasterState={forecasterState}
+            compact
+            focusedBranchNodeId={selectedRiverNodeForDrawer?.id || null}
+            focusedBranchLabel={selectedRiverNodeForDrawer?.shortName || null}
+            onFocusNode={(nodeId, canonicalId) =>
+              setSelectedNodeId(canonicalId || nodeId)
+            }
+          />
+        </div>
+      </div>
+            </>
+          )}
 
       {isPresentingTree && (
         <BranchingTreePresenter
@@ -2058,26 +2334,28 @@ export function ScenarioGraphExplorer({
         />
       )}
 
-      {/* Main Split Area */}
+      {/* Full-Width Diagram on Top + Node Audit & Branch Splits Underneath */}
       <div
         ref={mobileSplitScrollRef}
-        className={`relative flex flex-1 flex-col lg:flex-row ${
-          selectedCanonicalNode
-            ? "overflow-y-auto lg:overflow-hidden"
-            : "overflow-hidden"
-        }`}
+        className={
+          isRiverFullScreen
+            ? "relative flex flex-1 flex-col min-h-0 overflow-clip"
+            : "relative flex flex-col w-full"
+        }
       >
         {viewMode === "river" ? (
           <div
             ref={diagramViewportRef}
             tabIndex={0}
             role="region"
-            aria-label="Interactive AI 2027 branching probability diagram"
-            style={{ touchAction: "none" }}
-            className={`fg-diagram-viewport relative w-full overflow-hidden cursor-grab active:cursor-grabbing ${
-              selectedCanonicalNode
-                ? "h-[45dvh] min-h-[290px] sm:h-[48dvh] shrink-0 border-b border-slate-800 lg:h-full lg:flex-1 lg:border-b-0"
-                : "flex-1 h-full"
+            aria-label="Interactive branching probability diagram"
+            style={{
+              touchAction: isRiverFullScreen ? "none" : "pan-y pinch-zoom",
+            }}
+            className={`fg-diagram-viewport relative w-full overflow-clip cursor-grab active:cursor-grabbing ${
+              isRiverFullScreen
+                ? "flex-1 min-h-0 h-full"
+                : "h-[60dvh] min-h-[380px] sm:h-[70dvh] sm:min-h-[520px] lg:h-[75dvh]"
             }`}
             onMouseDown={(e) => {
               if (e.button !== 0) return;
@@ -2090,12 +2368,13 @@ export function ScenarioGraphExplorer({
             }}
             onMouseMove={(e) => {
               if (!isDragging || !dragLastClientRef.current) return;
-              const dx = e.clientX - dragLastClientRef.current.x;
-              const dy = e.clientY - dragLastClientRef.current.y;
-              if (Math.hypot(dx, dy) > 3) {
+              const rawDx = e.clientX - dragLastClientRef.current.x;
+              const rawDy = e.clientY - dragLastClientRef.current.y;
+              if (Math.hypot(rawDx, rawDy) > 3) {
                 didDragMoveRef.current = true;
               }
               dragLastClientRef.current = { x: e.clientX, y: e.clientY };
+              const { dx, dy } = mobileViewport.mapScreenDelta(rawDx, rawDy);
               panByPixels(dx, dy);
             }}
             onMouseUp={() => {
@@ -2194,9 +2473,9 @@ export function ScenarioGraphExplorer({
             <div
               data-outcomes-panel="true"
               onClick={(e) => e.stopPropagation()}
-              className={`pointer-events-auto absolute right-3 z-10 transition-all ${
-                selectedNeighborhood ? "bottom-14" : "top-3"
-              } w-64 sm:w-72 rounded-xl border border-slate-800/90 bg-slate-950/90 shadow-2xl backdrop-blur-md`}
+              className={`pointer-events-auto absolute right-2.5 sm:right-3 z-10 transition-all ${
+                selectedNeighborhood ? "bottom-14 sm:bottom-16" : "top-2.5 sm:top-3"
+              } w-56 sm:w-72 rounded-xl border border-slate-800/90 bg-slate-950/90 shadow-2xl backdrop-blur-md`}
             >
               <button
                 type="button"
@@ -2262,11 +2541,39 @@ export function ScenarioGraphExplorer({
                             )}
                             {outNode.shortName}
                           </span>
-                          <span
-                            className="font-mono font-bold tabular-nums shrink-0"
-                            style={{ color: palette.text }}
-                          >
-                            {pct}%
+                          <span className="inline-flex items-center gap-1 shrink-0">
+                            {forecasterState.showVarianceFromCrowd &&
+                              forecasterState.varianceReport?.byNodeId[
+                                outNode.id
+                              ] && (
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold tabular-nums ${
+                                    forecasterState.varianceReport.byNodeId[
+                                      outNode.id
+                                    ].signedDelta >= 0
+                                      ? "bg-emerald-500/20 text-emerald-300"
+                                      : "bg-rose-500/20 text-rose-300"
+                                  }`}
+                                >
+                                  {forecasterState.varianceReport.byNodeId[
+                                    outNode.id
+                                  ].signedDelta > 0
+                                    ? "+"
+                                    : ""}
+                                  {(
+                                    forecasterState.varianceReport.byNodeId[
+                                      outNode.id
+                                    ].signedDelta * 100
+                                  ).toFixed(1)}
+                                  %
+                                </span>
+                              )}
+                            <span
+                              className="font-mono font-bold tabular-nums"
+                              style={{ color: palette.text }}
+                            >
+                              {pct}%
+                            </span>
                           </span>
                         </div>
                         <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-800/80">
@@ -2283,6 +2590,30 @@ export function ScenarioGraphExplorer({
                       </button>
                     );
                   })}
+                  <div className="pt-2 border-t border-slate-800/80 mt-1">
+                    <WorldviewShareButton
+                      scenarioSlug={activeScenarioSlug}
+                      scenarioTitle={
+                        activeScenarioSlug === "ai-2050"
+                          ? "AI 2050 · Five Worlds"
+                          : activeScenarioSlug === "ai-2040"
+                          ? "AI 2040"
+                          : "AI 2027"
+                      }
+                      headline={`My ${
+                        activeScenarioSlug === "ai-2050"
+                          ? "AI 2050"
+                          : activeScenarioSlug === "ai-2040"
+                          ? "AI 2040"
+                          : "AI 2027"
+                      } endgame: ${rankedTerminalOutcomes[0]?.shortName ?? "the future"} leads`}
+                      outcomes={rankedTerminalOutcomes.map((o) => ({
+                        label: o.shortName,
+                        probability: Number(o.overallProb.toFixed(4)),
+                        nodeId: o.canonicalNodeId,
+                      }))}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -2290,7 +2621,7 @@ export function ScenarioGraphExplorer({
             {/* Interactive SVG Branching Probability River driven by viewBox camera */}
             <svg
               viewBox={`${camera.x} ${camera.y} ${camera.w} ${camera.h}`}
-              className="w-full h-full"
+              className="block w-full h-full"
               preserveAspectRatio="xMidYMid meet"
             >
               <defs>
@@ -2333,25 +2664,7 @@ export function ScenarioGraphExplorer({
 
               <g>
                 {/* Subtle Year Timeline Columns in Background */}
-                {(activeScenarioSlug === "ai-2050"
-                  ? ai2050DepthMode === "comprehensive"
-                    ? AI_2050_COMPREHENSIVE_TIMELINE_COLS
-                    : AI_2050_SIMPLE_TIMELINE_COLS
-                  : activeScenarioSlug === "ai-2040"
-                  ? AI_2040_TIMELINE_COLS
-                  : [
-                      { x: 95, year: "2025" },
-                      { x: 295, year: "2026" },
-                      { x: 505, year: "EARLY 2027" },
-                      { x: 720, year: "MID 2027" },
-                      { x: 935, year: "SEP 2027" },
-                      { x: 1125, year: "OCT 2027 FORK" },
-                      { x: 1315, year: "NOV 2027" },
-                      { x: 1475, year: "2028" },
-                      { x: 1625, year: "2029" },
-                      { x: 1765, year: "2030" },
-                    ]
-                ).map((col) => (
+                {activeTimelineCols.map((col) => (
                   <g key={col.year}>
                     <line
                       x1={col.x}
@@ -2797,8 +3110,8 @@ export function ScenarioGraphExplorer({
               </g>
             </svg>
 
-            {/* Bottom-Left Zoom Controls & Helper */}
-            <div className="pointer-events-auto absolute bottom-3 left-3 z-10 flex flex-wrap items-center gap-2">
+            {/* Bottom-Left Zoom Controls & Mobile Stage Stepper */}
+            <div className="pointer-events-auto absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 z-10 flex flex-wrap items-center gap-1.5 sm:gap-2">
               <div className="flex items-center rounded-lg border border-slate-800 bg-slate-950/90 p-1 shadow-lg backdrop-blur-md">
                 <button
                   type="button"
@@ -2831,20 +3144,103 @@ export function ScenarioGraphExplorer({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    setMobileStageIndex(null);
                     animateCameraTo(FULL_VIEWBOX);
                   }}
                   className="px-2 py-1 text-[11px] font-mono text-slate-400 hover:text-white"
                 >
-                  Reset View
+                  <span className="hidden sm:inline">Reset View</span>
+                  <span className="sm:hidden">Fit</span>
                 </button>
               </div>
+
+              {/* Mobile Stage-by-Stage Timeline Stepper */}
+              <div className="flex md:hidden items-center rounded-lg border border-slate-800 bg-slate-950/90 p-0.5 text-[11px] font-semibold text-slate-200 shadow-lg backdrop-blur-md">
+                <button
+                  type="button"
+                  aria-label="Previous timeline stage"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    stepMobileStage(-1);
+                  }}
+                  className="inline-flex min-h-[28px] min-w-[28px] items-center justify-center rounded px-1.5 hover:bg-slate-800"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+                <span className="px-1.5 text-[10px] font-mono font-bold text-amber-300 whitespace-nowrap">
+                  {mobileStageIndex !== null
+                    ? activeTimelineCols[mobileStageIndex]?.year
+                    : "Stages"}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Next timeline stage"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    stepMobileStage(1);
+                  }}
+                  className="inline-flex min-h-[28px] min-w-[28px] items-center justify-center rounded px-1.5 hover:bg-slate-800"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+
+            {/* Prominent Bottom-Right Floating Full Screen Toggle & Scroll-to-Node-Studio Pill */}
+            <div
+              data-outcomes-panel="true"
+              onClick={(e) => e.stopPropagation()}
+              className="pointer-events-auto absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 z-20 flex flex-wrap items-center justify-end gap-1.5 sm:gap-2"
+            >
+              {!isRiverFullScreen && selectedCanonicalNode && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    document
+                      .getElementById("river-node-studio")
+                      ?.scrollIntoView({ behavior: "smooth" })
+                  }
+                  className="inline-flex min-h-[34px] sm:min-h-[36px] items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950/95 hover:bg-slate-900 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold text-amber-300 shadow-lg backdrop-blur-md transition-colors"
+                >
+                  <ArrowDown className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
+                  <span className="max-w-[140px] sm:max-w-none truncate">
+                    Splits &amp; Audit:{" "}
+                    <strong>
+                      {selectedRiverNodeForDrawer?.shortName ||
+                        selectedCanonicalNode.title}
+                    </strong>
+                  </span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsRiverFullScreen((prev) => !prev)}
+                className="inline-flex min-h-[34px] sm:min-h-[36px] items-center gap-1.5 sm:gap-2 rounded-xl border border-indigo-400/90 bg-indigo-600 hover:bg-indigo-500 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-extrabold text-white keep-white shadow-xl shadow-indigo-950/50 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+              >
+                {isRiverFullScreen ? (
+                  <>
+                    <Minimize2 className="h-4 w-4" aria-hidden="true" />
+                    <span>
+                      Exit Full Screen
+                      <span className="hidden sm:inline"> (Esc)</span>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="h-4 w-4" aria-hidden="true" />
+                    <span className="sm:hidden">Horizontal Full Screen</span>
+                    <span className="hidden sm:inline">Full Screen View</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         ) : (
           /* Table View (When toggled) */
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="mx-auto max-w-5xl rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-              <table className="w-full text-left text-xs">
+          <div className="w-full p-3 sm:p-6 select-text">
+            <div className="mx-auto max-w-5xl overflow-x-auto fg-no-scrollbar rounded-2xl border border-slate-800 bg-slate-900/50 p-3 sm:p-4">
+              <table className="w-full min-w-[600px] text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-800 text-slate-400 font-mono uppercase">
                     <th className="py-2.5 px-3">Date / Stage</th>
@@ -2907,129 +3303,187 @@ export function ScenarioGraphExplorer({
           </div>
         )}
 
-        {/* Detail Panel — Appears ONLY when a node on the river (or outcome leaderboard) is clicked */}
-        {selectedCanonicalNode && (
-          <div className="flex flex-col w-full border-t border-slate-800 bg-slate-950 shadow-2xl lg:w-[480px] xl:w-[520px] lg:h-full lg:shrink-0 lg:border-t-0 lg:border-l">
-            {/* Mobile Sticky Helper to jump back to the zoomed diagram at the top */}
-            <div className="sticky top-0 z-20 flex lg:hidden items-center justify-between border-b border-slate-800 bg-slate-900/95 px-4 py-2 text-xs backdrop-blur-md">
-              <span className="font-semibold text-amber-300 truncate">
-                Viewing:{" "}
-                {selectedRiverNodeForDrawer?.shortName ||
-                  selectedCanonicalNode.title}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    mobileSplitScrollRef.current?.scrollTo({
-                      top: 0,
-                      behavior: "smooth",
-                    });
-                  }}
-                  className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200"
-                >
-                  <ArrowUp className="h-3 w-3 text-amber-400" />
-                  <span>Top Diagram</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedNodeId(null)}
-                  className="rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-300"
-                >
-                  Close
-                </button>
+        {/* Bottom Section (Under the Graph): Node Branch Splits & Audit Studio */}
+        {!isRiverFullScreen && selectedCanonicalNode && (
+          <section
+            id="river-node-studio"
+            aria-label="Selected Branch Node Splits and Audit Studio"
+            className="w-full border-t border-slate-800 bg-slate-950 select-text"
+          >
+            <div className="mx-auto max-w-[1600px] p-4 sm:p-6 space-y-4">
+              {/* Top Helper Bar to jump back up to the diagram or close selection */}
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-2.5 text-xs">
+                <span className="font-bold text-amber-300">
+                  Selected Branch Node:{" "}
+                  <span className="text-white">
+                    {selectedRiverNodeForDrawer?.shortName ||
+                      selectedCanonicalNode.title}
+                  </span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      window.scrollTo({ top: 0, behavior: "smooth" })
+                    }
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-200"
+                  >
+                    <ArrowUp className="h-3 w-3 text-amber-400" aria-hidden="true" />
+                    <span>Back to Graph</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedNodeId(null)}
+                    className="rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-300"
+                  >
+                    Close Selection
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Interactive Branch Split Slider right at the top of the drawer */}
-            {selectedRiverNodeForDrawer &&
-              selectedRiverNodeForDrawer.parentId && (
-                <div className="shrink-0 border-b border-amber-500/30 bg-amber-950/20 px-4 py-3">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="flex items-center gap-1.5 font-bold text-amber-300">
-                      <Sliders className="h-3.5 w-3.5" />
-                      Adjust Branch Split (Given Parent Node):
-                    </span>
-                    <span className="font-mono font-bold text-white">
-                      {Math.round(
+              {/* Interactive Branch Split Slider Card */}
+              {selectedRiverNodeForDrawer &&
+                selectedRiverNodeForDrawer.parentId && (
+                  <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 sm:p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs mb-2">
+                      <span className="flex items-center gap-1.5 font-bold text-amber-300">
+                        <Sliders className="h-4 w-4" aria-hidden="true" />
+                        Adjust Branch Split (Given Parent Node):
+                      </span>
+                      <span className="font-mono font-bold text-white">
+                        {Math.round(
+                          selectedRiverNodeForDrawer.conditionalProb * 100
+                        )}
+                        % split →{" "}
+                        <strong className="text-amber-400">
+                          {(
+                            selectedRiverNodeForDrawer.overallProb * 100
+                          ).toFixed(1)}
+                          % overall
+                        </strong>
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={2}
+                      max={96}
+                      value={Math.round(
                         selectedRiverNodeForDrawer.conditionalProb * 100
                       )}
-                      % split →{" "}
-                      <strong className="text-amber-400">
-                        {(selectedRiverNodeForDrawer.overallProb * 100).toFixed(
-                          1
-                        )}
-                        % overall
-                      </strong>
-                    </span>
+                      onChange={(e) =>
+                        handleSetBranchConditional(
+                          selectedRiverNodeForDrawer.id,
+                          Number(e.target.value) / 100
+                        )
+                      }
+                      className="w-full accent-amber-400"
+                    />
+                    <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
+                      <span className="text-[11px] text-slate-400">
+                        Sibling branches auto-rebalance to 100%.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          forecasterState.openAgentStudio({
+                            forkActor:
+                              forecasterState.activeLensMode ===
+                              "individual_actor"
+                                ? forecasterState.selectedActor
+                                : null,
+                            scope: "branch",
+                            branchNodeId:
+                              selectedRiverNodeForDrawer.parentId ||
+                              selectedRiverNodeForDrawer.id,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 text-[11px] font-mono text-cyan-300 shrink-0"
+                      >
+                        <GitBranch className="h-3 w-3" aria-hidden="true" />
+                        Copy Branch Prompt
+                      </button>
+                    </div>
+                    {forecasterState.activeLensMode === "individual_actor" &&
+                      forecasterState.varianceReport?.byNodeId[
+                        selectedRiverNodeForDrawer.id
+                      ]?.rationale && (
+                        <div className="mt-3 rounded-xl bg-slate-900/90 border border-violet-500/30 p-3 text-xs text-slate-200 space-y-1">
+                          <div className="flex items-center justify-between text-[11px] font-mono text-violet-300">
+                            <span>
+                              @{forecasterState.selectedActor?.handle} Rationale:
+                            </span>
+                            <span>
+                              {forecasterState.varianceReport.byNodeId[
+                                selectedRiverNodeForDrawer.id
+                              ].signedDelta > 0
+                                ? "+"
+                                : ""}
+                              {(
+                                forecasterState.varianceReport.byNodeId[
+                                  selectedRiverNodeForDrawer.id
+                                ].signedDelta * 100
+                              ).toFixed(1)}
+                              % vs Crowd
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-300 leading-relaxed">
+                            {
+                              forecasterState.varianceReport.byNodeId[
+                                selectedRiverNodeForDrawer.id
+                              ].rationale
+                            }
+                          </p>
+                        </div>
+                      )}
                   </div>
-                  <input
-                    type="range"
-                    min={2}
-                    max={96}
-                    value={Math.round(
-                      selectedRiverNodeForDrawer.conditionalProb * 100
-                    )}
-                    onChange={(e) =>
-                      handleSetBranchConditional(
-                        selectedRiverNodeForDrawer.id,
-                        Number(e.target.value) / 100
-                      )
-                    }
-                    className="w-full"
-                  />
-                  <div className="text-[11px] text-slate-400 mt-1">
-                    Sibling branches leaving the same parent automatically
-                    rebalance so the fork sums to 100%.
-                  </div>
-                </div>
-              )}
+                )}
 
-            <div className="flex-1 lg:overflow-y-auto">
-              <NodeAuditPanel
-                key={selectedCanonicalNode.id}
-                node={selectedCanonicalNode}
-                propagation={
-                  propagation.results[selectedCanonicalNode.id] || null
-                }
-                lensPriors={
-                  lensPriorsByNode[selectedCanonicalNode.id] || {
-                    original: null,
-                    my_forecasts: 0.5,
-                    ai_claude: 0.5,
-                    ai_gpt: 0.5,
-                    ai_gemini: 0.5,
-                    community: 0.5,
-                    demo_hypothesis: 0.5,
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 overflow-clip">
+                <NodeAuditPanel
+                  key={selectedCanonicalNode.id}
+                  node={selectedCanonicalNode}
+                  propagation={
+                    propagation.results[selectedCanonicalNode.id] || null
                   }
-                }
-                evidence={nodeSources.filter(
-                  (ns) => ns.nodeId === selectedCanonicalNode.id
-                )}
-                argumentsList={argumentsList.filter(
-                  (a) => a.nodeId === selectedCanonicalNode.id
-                )}
-                comments={comments.filter(
-                  (c) => c.nodeId === selectedCanonicalNode.id
-                )}
-                forecasts={forecastEvents.filter(
-                  (fe) => fe.nodeId === selectedCanonicalNode.id
-                )}
-                incomingEdges={edges.filter(
-                  (e) => e.targetNodeId === selectedCanonicalNode.id
-                )}
-                outgoingEdges={edges.filter(
-                  (e) => e.sourceNodeId === selectedCanonicalNode.id
-                )}
-                downstreamImpacts={selectedNodeDownstreamImpacts}
-                onSelectNode={(id) => setSelectedNodeId(id)}
-                onClose={() => setSelectedNodeId(null)}
-              />
+                  lensPriors={
+                    lensPriorsByNode[selectedCanonicalNode.id] || {
+                      original: null,
+                      my_forecasts: 0.5,
+                      ai_claude: 0.5,
+                      ai_gpt: 0.5,
+                      ai_gemini: 0.5,
+                      community: 0.5,
+                      demo_hypothesis: 0.5,
+                    }
+                  }
+                  evidence={nodeSources.filter(
+                    (ns) => ns.nodeId === selectedCanonicalNode.id
+                  )}
+                  argumentsList={argumentsList.filter(
+                    (a) => a.nodeId === selectedCanonicalNode.id
+                  )}
+                  comments={comments.filter(
+                    (c) => c.nodeId === selectedCanonicalNode.id
+                  )}
+                  forecasts={forecastEvents.filter(
+                    (fe) => fe.nodeId === selectedCanonicalNode.id
+                  )}
+                  incomingEdges={edges.filter(
+                    (e) => e.targetNodeId === selectedCanonicalNode.id
+                  )}
+                  outgoingEdges={edges.filter(
+                    (e) => e.sourceNodeId === selectedCanonicalNode.id
+                  )}
+                  downstreamImpacts={selectedNodeDownstreamImpacts}
+                  onSelectNode={(id) => setSelectedNodeId(id)}
+                  onClose={() => setSelectedNodeId(null)}
+                />
+              </div>
             </div>
-          </div>
+          </section>
         )}
       </div>
-      </>
+        </div>
       )}
     </div>
   );

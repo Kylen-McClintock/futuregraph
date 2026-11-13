@@ -97,6 +97,21 @@ const REST_ENDPOINTS = [
   },
   {
     method: "GET",
+    path: "/api/v1/agents?graphId=ai-2027&crowdMode=all_ensemble",
+    summary: "List all verified Worldview Agents, human/market baselines, Community Sandbox agents, and live Crowd Wisdom distribution.",
+  },
+  {
+    method: "GET",
+    path: "/api/v1/agents/prompt-pack?graphId=ai-2027&scope=graph",
+    summary: "Generate a 1-click conditional probability Prompt Pack + cURL push template for any Focused Branch, Full Graph, or All-Site Sweep.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/agents/runs",
+    summary: "Validate, normalize (100% per fork), and publish a complete agent distribution + WorldviewCard with SHA-256 receipt and share URL.",
+  },
+  {
+    method: "GET",
     path: "/api/v1/schema",
     summary: "Fetch machine-readable JSON Schema definitions for FutureGraph entities and MCP tools.",
   },
@@ -191,6 +206,35 @@ const MCP_TOOLS = [
       nodeProbabilityOverrides: {
         "node-mar-2027-algorithmic-breakthroughs": 0.35,
         "node-sep-2027-agent-4-superhuman-ai-researcher": 0.28,
+      },
+    },
+  },
+  {
+    name: "get_graph_prompt_pack",
+    description: "Generate a conditional probability Prompt Pack for a focused branch, full graph, or all-site sweep.",
+    sampleArgs: {
+      graphId: "ai-2050-simple",
+      scope: "graph",
+      outputMode: "standard",
+    },
+  },
+  {
+    name: "submit_graph_forecast_run",
+    description: "Submit a complete conserved conditional distribution + WorldviewCard for any FutureGraph atlas.",
+    sampleArgs: {
+      graphId: "ai-2050-simple",
+      handle: "demo_worldview_agent",
+      displayName: "Demo Worldview Agent",
+      headlineSummary: "Futurama 54% • Singularia 24% • AI-Dystopia 14% • Fizzle 4% • Paperclip 4%",
+      conditionalSplits: {
+        "r2050-s-end-fizzle": 0.04,
+        "r2050-s-q2-civ": 0.96,
+        "r2050-s-q3a-good": 0.71,
+        "r2050-s-q3b-good": 0.29,
+        "r2050-s-end-futurama": 0.79,
+        "r2050-s-end-dystopia": 0.21,
+        "r2050-s-end-singularia": 0.86,
+        "r2050-s-end-paperclip": 0.14,
       },
     },
   },

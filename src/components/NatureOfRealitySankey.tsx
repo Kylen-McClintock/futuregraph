@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
+  ArrowDown,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -12,14 +13,17 @@ import {
   Focus,
   Lock,
   Maximize2,
+  Minimize2,
   Minus,
   Moon,
   Play,
   Plus,
   RotateCcw,
+  RotateCw,
   Share2,
   ShieldCheck,
   Sliders,
+  Smartphone,
   Sparkles,
   Sun,
   Table as TableIcon,
@@ -38,6 +42,10 @@ import {
   NATURE_OF_REALITY_PRESETS,
 } from "@/data/nature-of-reality-seed";
 import { NatureOfRealityOverallFlow } from "@/components/NatureOfRealityOverallFlow";
+import { UnifiedForecasterBar } from "@/components/UnifiedForecasterBar";
+import { useGraphForecaster } from "@/hooks/useGraphForecaster";
+import { useMobileGraphViewport } from "@/hooks/useMobileGraphViewport";
+import { GitBranch } from "lucide-react";
 
 interface SankeyNodeBox {
   id: string;
@@ -334,6 +342,9 @@ function buildFlourishSankeyLayout(
 
 export function NatureOfRealitySankey() {
   const uniqueIdPrefix = useId().replace(/:/g, "");
+  const forecasterState = useGraphForecaster({
+    graphId: "nature-of-reality",
+  });
 
   // Active worldview preset & custom user state
   const [activePresetId, setActivePresetId] = useState<string>("author_baseline");
@@ -415,20 +426,77 @@ export function NatureOfRealitySankey() {
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const didPanDuringDragRef = useRef<boolean>(false);
 
+  // Reset manual custom preset flag whenever user switches forecaster / crowd lens in UnifiedForecasterBar
+  useEffect(() => {
+    if (forecasterState.activeLensMode !== "default_creator") {
+      setActivePresetId("forecaster_lens");
+      setConditionedNodeId(null);
+    } else {
+      setActivePresetId((prev) =>
+        prev === "forecaster_lens" ? "author_baseline" : prev
+      );
+    }
+  }, [
+    forecasterState.activeLensMode,
+    forecasterState.selectedActorHandle,
+    forecasterState.crowdMode,
+  ]);
+
+  const effectiveRootPriors = useMemo(() => {
+    if (
+      activePresetId !== "custom" &&
+      forecasterState.activeLensMode !== "default_creator" &&
+      forecasterState.activeDistribution.normalizedRootPriors
+    ) {
+      return forecasterState.activeDistribution.normalizedRootPriors;
+    }
+    return rootPriors;
+  }, [
+    activePresetId,
+    forecasterState.activeDistribution.normalizedRootPriors,
+    forecasterState.activeLensMode,
+    rootPriors,
+  ]);
+
+  const effectiveConditionalOverrides = useMemo(() => {
+    if (
+      activePresetId !== "custom" &&
+      forecasterState.activeLensMode !== "default_creator"
+    ) {
+      return forecasterState.activeDistribution.normalizedConditionalSplits;
+    }
+    return conditionalOverrides;
+  }, [
+    activePresetId,
+    conditionalOverrides,
+    forecasterState.activeDistribution.normalizedConditionalSplits,
+    forecasterState.activeLensMode,
+  ]);
+
+  const effectiveCrowdConditionals = useMemo(() => {
+    if (Object.keys(communityConditionalOverrides).length > 0) {
+      return communityConditionalOverrides;
+    }
+    return forecasterState.crowdDistribution.normalizedConditionalSplits;
+  }, [
+    communityConditionalOverrides,
+    forecasterState.crowdDistribution.normalizedConditionalSplits,
+  ]);
+
   // Compute complete Sankey graph
   const graph = useMemo(
     () =>
       computeNatureOfRealityGraph(
-        rootPriors,
-        conditionalOverrides,
+        effectiveRootPriors,
+        effectiveConditionalOverrides,
         conditionedNodeId,
-        communityConditionalOverrides
+        effectiveCrowdConditionals
       ),
     [
-      rootPriors,
-      conditionalOverrides,
+      effectiveRootPriors,
+      effectiveConditionalOverrides,
       conditionedNodeId,
-      communityConditionalOverrides,
+      effectiveCrowdConditionals,
     ]
   );
 
@@ -537,14 +605,24 @@ export function NatureOfRealitySankey() {
   }, [hoveredLinkId, activeFocusNodeId, graph]);
 
   // Apply a worldview preset
-  const handleSelectPreset = useCallback((presetId: string) => {
-    const preset = NATURE_OF_REALITY_PRESETS.find((p) => p.id === presetId);
-    if (!preset) return;
-    setActivePresetId(preset.id);
-    setRootPriors({ ...preset.rootPriors });
-    setConditionalOverrides({ ...(preset.conditionalOverrides || {}) });
-    setConditionedNodeId(null);
-  }, []);
+  const handleSelectPreset = useCallback(
+    (presetId: string) => {
+      const preset = NATURE_OF_REALITY_PRESETS.find((p) => p.id === presetId);
+      if (!preset) return;
+      if (preset.id === "author_baseline") {
+        forecasterState.selectDefaultBaseline();
+      } else if (preset.id === "community_aggregate") {
+        forecasterState.selectCrowdWisdom();
+      } else {
+        forecasterState.selectDefaultBaseline();
+      }
+      setActivePresetId(preset.id);
+      setRootPriors({ ...preset.rootPriors });
+      setConditionalOverrides({ ...(preset.conditionalOverrides || {}) });
+      setConditionedNodeId(null);
+    },
+    [forecasterState]
+  );
 
   // Adjust a Column 0 Root Prior and automatically rebalance sibling roots to sum to 100%
   const handleChangeRootPrior = useCallback(
@@ -845,9 +923,174 @@ export function NatureOfRealitySankey() {
   }, []);
 
   const isLightCanvas = canvasBackdrop === "flourish-light";
+  const isFullScreen = studioMode === "canvas";
+  const mobileViewport = useMobileGraphViewport(isFullScreen);
+  const cameraRef = useRef(camera);
+  cameraRef.current = camera;
+
   const customEditCount =
     Object.keys(conditionalOverrides).length +
     (activePresetId === "custom" ? 1 : 0);
+
+  // Mobile touchscreen 2-finger pinch-to-zoom & scroll-safe 1-finger pan on Sankey SVG
+  useEffect(() => {
+    const el = svgContainerRef.current;
+    if (!el) return;
+
+    let mode: "none" | "pan" | "pinch" | "page-scroll" = "none";
+    let startTouch = { x: 0, y: 0 };
+    let lastTouch = { x: 0, y: 0 };
+    let lastPinchDist = 0;
+
+    const getDist = (t0: Touch, t1: Touch) =>
+      Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+
+    const onTouchStart = (e: TouchEvent) => {
+      if ((e.target as HTMLElement).closest("[data-floating-ui]")) {
+        mode = "none";
+        return;
+      }
+      if (e.touches.length === 2) {
+        mode = "pinch";
+        lastPinchDist = getDist(e.touches[0], e.touches[1]);
+        didPanDuringDragRef.current = true;
+      } else if (e.touches.length === 1) {
+        mode = "pan";
+        startTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        lastTouch = { ...startTouch };
+        didPanDuringDragRef.current = false;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (mode === "none" || mode === "page-scroll") return;
+
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        mode = "pinch";
+        const d = getDist(e.touches[0], e.touches[1]);
+        if (lastPinchDist > 8 && d > 8) {
+          const factor = lastPinchDist / d;
+          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const rect = el.getBoundingClientRect();
+          const { relX, relY } = mobileViewport.mapScreenPointToRelative(
+            midX,
+            midY,
+            rect
+          );
+          setCamera((prev) => {
+            const nextW = clamp(prev.w * factor, 440, SANKEY_VIEWBOX.w);
+            const nextH = clamp(prev.h * factor, 240, SANKEY_VIEWBOX.h);
+            return {
+              x: clamp(
+                prev.x + (prev.w - nextW) * relX,
+                -120,
+                SANKEY_VIEWBOX.w - nextW + 120
+              ),
+              y: clamp(
+                prev.y + (prev.h - nextH) * relY,
+                -80,
+                SANKEY_VIEWBOX.h - nextH + 80
+              ),
+              w: nextW,
+              h: nextH,
+            };
+          });
+        }
+        lastPinchDist = d;
+        return;
+      }
+
+      if (e.touches.length === 1 && mode === "pan") {
+        const curX = e.touches[0].clientX;
+        const curY = e.touches[0].clientY;
+        const totalDx = curX - startTouch.x;
+        const totalDy = curY - startTouch.y;
+        const isZoomedIn = cameraRef.current.w < SANKEY_VIEWBOX.w * 0.96;
+
+        // In inline (non-fullscreen) mode at default scale, let vertical swipes scroll the page naturally
+        if (
+          !isFullScreen &&
+          !isZoomedIn &&
+          Math.abs(totalDy) > 8 &&
+          Math.abs(totalDy) > Math.abs(totalDx) * 1.15
+        ) {
+          mode = "page-scroll";
+          return;
+        }
+
+        const rawDx = curX - lastTouch.x;
+        const rawDy = curY - lastTouch.y;
+        if (Math.hypot(totalDx, totalDy) > 5) {
+          didPanDuringDragRef.current = true;
+        }
+        e.preventDefault();
+        lastTouch = { x: curX, y: curY };
+
+        const { dx, dy } = mobileViewport.mapScreenDelta(rawDx, rawDy);
+        const rect = el.getBoundingClientRect();
+        const localWidth = Math.max(
+          1,
+          mobileViewport.isRotatedCssLandscape ? rect.height : rect.width
+        );
+        const unitsPerPx = cameraRef.current.w / localWidth;
+
+        setCamera((prev) => ({
+          ...prev,
+          x: clamp(
+            prev.x - dx * unitsPerPx,
+            -120,
+            SANKEY_VIEWBOX.w - prev.w + 120
+          ),
+          y: clamp(
+            prev.y - dy * unitsPerPx,
+            -80,
+            SANKEY_VIEWBOX.h - prev.h + 80
+          ),
+        }));
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (mode === "pinch") {
+        mode = "none";
+      } else {
+        mode = "none";
+      }
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [
+    isFullScreen,
+    studioMode,
+    mobileViewport.isRotatedCssLandscape,
+    mobileViewport.mapScreenDelta,
+    mobileViewport.mapScreenPointToRelative,
+  ]);
+
+  // Allow pressing Escape to exit Full Screen Sankey mode cleanly (unless a modal dialog is open)
+  useEffect(() => {
+    if (!isFullScreen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (document.querySelector("dialog[open]")) return;
+        setStudioMode("split");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isFullScreen]);
 
   // Filtered nodes for the Full Deep-Dive Probability Matrix view
   const filteredMatrixNodes = useMemo(() => {
@@ -867,14 +1110,113 @@ export function NatureOfRealitySankey() {
   }, [graph.nodes, matrixEpochFilter, matrixSearchQuery]);
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-950 text-slate-100 select-none">
-      {/* Top Worldview Archetype Bar & Mode Controls */}
-      <div className="shrink-0 border-b border-slate-800/90 bg-slate-900/90 px-4 py-2">
-        <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-2">
+    <div
+      className={
+        isFullScreen
+          ? mobileViewport.isRotatedCssLandscape
+            ? "fg-mobile-landscape-shell z-50 flex flex-col overflow-clip bg-slate-950 text-slate-100 select-none"
+            : "fg-safe-fullscreen fixed inset-0 z-50 flex flex-col h-[100dvh] w-full overflow-clip bg-slate-950 text-slate-100 select-none"
+          : "flex flex-col w-full bg-slate-950 text-slate-100 select-none"
+      }
+    >
+      {/* Sleek Minimal Header when in Full Screen Mode */}
+      {isFullScreen ? (
+        <div className="shrink-0 border-b border-slate-800 bg-slate-950/95 px-3 sm:px-4 py-1.5">
+          <div className="mx-auto flex max-w-[1920px] items-center justify-between gap-2 overflow-x-auto fg-no-scrollbar">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="rounded-md bg-gradient-to-r from-indigo-500 via-pink-500 to-amber-400 px-2 py-0.5 text-[10px] font-extrabold uppercase text-white keep-white whitespace-nowrap">
+                Full Screen 7-Epoch Sankey
+              </span>
+              <span className="hidden sm:inline text-xs sm:text-sm font-extrabold text-white whitespace-nowrap">
+                Nature of Reality: 43 Hypotheses
+              </span>
+              <span className="hidden lg:inline text-xs font-mono text-emerald-300 whitespace-nowrap">
+                •{" "}
+                {forecasterState.activeLensMode === "individual_actor"
+                  ? `${forecasterState.selectedActor?.displayName} (@${forecasterState.selectedActor?.handle})`
+                  : forecasterState.activeLensMode === "crowd_wisdom"
+                  ? `Crowd Wisdom (${forecasterState.crowdMode.replace("_", " ")})`
+                  : "Kylen McClintock (Creator Baseline)"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {mobileViewport.isMobile && mobileViewport.isPortrait && (
+                <button
+                  type="button"
+                  aria-pressed={mobileViewport.preferHorizontalFullScreen}
+                  onClick={mobileViewport.toggleHorizontalFullScreen}
+                  className="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-amber-400/60 bg-amber-500/20 px-2.5 py-1 text-xs font-bold text-amber-200 whitespace-nowrap"
+                >
+                  {mobileViewport.preferHorizontalFullScreen ? (
+                    <>
+                      <Smartphone className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
+                      <span>Portrait View</span>
+                    </>
+                  ) : (
+                    <>
+                      <RotateCw className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
+                      <span>Horizontal View</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              <button
+                type="button"
+                aria-pressed={forecasterState.showVarianceFromCrowd}
+                onClick={forecasterState.toggleVarianceFromCrowd}
+                className={`inline-flex min-h-[34px] items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors ${
+                  forecasterState.showVarianceFromCrowd
+                    ? "border-sky-400 bg-sky-500/20 text-sky-200"
+                    : "border-slate-700 bg-slate-900 text-slate-300 hover:text-white"
+                }`}
+              >
+                <span>Δ vs. Crowd</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setCanvasBackdrop((prev) =>
+                    prev === "flourish-light" ? "cosmos-dark" : "flourish-light"
+                  )
+                }
+                className="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/90 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700 whitespace-nowrap"
+              >
+                {isLightCanvas ? (
+                  <>
+                    <Sun className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
+                    <span>Flourish Silk</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
+                    <span>Dark Cosmos</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStudioMode("split")}
+                className="inline-flex min-h-[34px] items-center gap-1.5 rounded-xl border border-indigo-400/80 bg-indigo-600 hover:bg-indigo-500 px-3 py-1 text-xs font-extrabold text-white keep-white shadow-md whitespace-nowrap transition-colors"
+              >
+                <Minimize2 className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Exit Full Screen</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+      {/* Top Worldview Archetype Bar & Mode Controls (Single-row swipeable on mobile) */}
+      <div className="shrink-0 border-b border-slate-800/90 bg-slate-900/90 px-3 sm:px-4 py-1.5 sm:py-2">
+        <div className="mx-auto flex max-w-[1800px] flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-2">
           {/* Left: Worldview Archetype Presets */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-md bg-indigo-500/20 border border-indigo-400/40 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-indigo-300">
-              <Compass className="h-3 w-3 text-indigo-400" />
+          <div className="flex items-center gap-1.5 overflow-x-auto fg-no-scrollbar lg:flex-wrap">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-indigo-500/20 border border-indigo-400/40 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-indigo-300 whitespace-nowrap">
+              <Compass className="h-3 w-3 text-indigo-400" aria-hidden="true" />
               <span>Worldview Lens:</span>
             </span>
 
@@ -886,7 +1228,7 @@ export function NatureOfRealitySankey() {
                   type="button"
                   aria-pressed={isSelected}
                   onClick={() => handleSelectPreset(preset.id)}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 ${
+                  className={`inline-flex min-h-[34px] shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 ${
                     isSelected
                       ? "border-white/80 bg-slate-800 text-white shadow-sm"
                       : "border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-700 hover:text-white"
@@ -896,7 +1238,11 @@ export function NatureOfRealitySankey() {
                     className="h-2.5 w-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: preset.accentColor }}
                   />
-                  <span>{preset.shortBadge}</span>
+                  <span>
+                    {preset.id === "author_baseline"
+                      ? "Kylen McClintock (Creator)"
+                      : preset.shortBadge}
+                  </span>
                   {preset.id === "community_aggregate" && (
                     <span className="rounded bg-sky-500/20 px-1 py-0.2 text-[10px] font-mono text-sky-300 tabular-nums">
                       N={communityCount}
@@ -907,18 +1253,29 @@ export function NatureOfRealitySankey() {
             })}
 
             {activePresetId === "custom" && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-amber-400/60 bg-amber-500/20 px-2.5 py-1 text-xs font-bold text-amber-300">
-                <Sliders className="h-3 w-3" />
+              <span className="inline-flex min-h-[34px] shrink-0 items-center gap-1 rounded-lg border border-amber-400/60 bg-amber-500/20 px-2.5 py-1 text-xs font-bold text-amber-300 whitespace-nowrap">
+                <Sliders className="h-3 w-3" aria-hidden="true" />
                 <span>Custom Worldview ({customEditCount} edits)</span>
               </span>
             )}
           </div>
 
-          {/* Right: Studio Mode Switcher, Guided Tour, & Community Submit */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* View Mode Toggle: Gradient Sankey vs Recommended 7-Epoch Conditional Spine vs Deep-Dive Matrix vs Full Canvas */}
+          {/* Right: Studio Mode Switcher, Prominent Full Screen, Guided Tour, & Community Submit */}
+          <div className="flex items-center gap-2 overflow-x-auto fg-no-scrollbar lg:flex-wrap">
+            {/* Prominent Full Screen View Action Button (Placed FIRST on mobile for instant 1-tap access) */}
+            <button
+              type="button"
+              onClick={() => setStudioMode("canvas")}
+              className="inline-flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-xl border border-indigo-400/90 bg-indigo-600 hover:bg-indigo-500 px-3.5 py-1.5 text-xs font-extrabold text-white keep-white shadow-md shadow-indigo-950/50 whitespace-nowrap transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+            >
+              <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sm:hidden">Horizontal Full Screen</span>
+              <span className="hidden sm:inline">Full Screen View</span>
+            </button>
+
+            {/* View Mode Toggle: Gradient Sankey vs Recommended 7-Epoch Conditional Spine vs Deep-Dive Matrix */}
             <div
-              className="inline-flex flex-wrap items-center rounded-lg border border-slate-800 bg-slate-950 p-0.5 text-xs"
+              className="inline-flex shrink-0 items-center rounded-lg border border-slate-800 bg-slate-950 p-0.5 text-xs"
               role="group"
               aria-label="Probability Studio View Mode"
             >
@@ -926,7 +1283,7 @@ export function NatureOfRealitySankey() {
                 type="button"
                 aria-pressed={studioMode === "split"}
                 onClick={() => setStudioMode("split")}
-                className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                className={`min-h-[32px] rounded-md px-2.5 py-1 font-semibold whitespace-nowrap transition-colors ${
                   studioMode === "split"
                     ? "bg-indigo-600 text-white keep-white"
                     : "text-slate-400 hover:text-white"
@@ -938,40 +1295,27 @@ export function NatureOfRealitySankey() {
                 type="button"
                 aria-pressed={studioMode === "spine"}
                 onClick={() => setStudioMode("spine")}
-                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                className={`inline-flex min-h-[32px] items-center gap-1 rounded-md px-2.5 py-1 font-semibold whitespace-nowrap transition-colors ${
                   studioMode === "spine"
                     ? "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-sm keep-white"
                     : "text-fuchsia-300 hover:text-white"
                 }`}
               >
-                <Sparkles className="h-3 w-3" />
+                <Sparkles className="h-3 w-3" aria-hidden="true" />
                 <span>7-Epoch Flow &amp; Spine</span>
               </button>
               <button
                 type="button"
                 aria-pressed={studioMode === "matrix"}
                 onClick={() => setStudioMode("matrix")}
-                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                className={`inline-flex min-h-[32px] items-center gap-1 rounded-md px-2.5 py-1 font-semibold whitespace-nowrap transition-colors ${
                   studioMode === "matrix"
                     ? "bg-indigo-600 text-white keep-white"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                <TableIcon className="h-3 w-3" />
-                <span>All 43 Nodes & 119 Splits</span>
-              </button>
-              <button
-                type="button"
-                aria-pressed={studioMode === "canvas"}
-                onClick={() => setStudioMode("canvas")}
-                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-semibold transition-colors ${
-                  studioMode === "canvas"
-                    ? "bg-indigo-600 text-white keep-white"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Maximize2 className="h-3 w-3" />
-                <span>Full Sankey</span>
+                <TableIcon className="h-3 w-3" aria-hidden="true" />
+                <span>All 43 Nodes</span>
               </button>
             </div>
 
@@ -983,17 +1327,17 @@ export function NatureOfRealitySankey() {
                   prev === "flourish-light" ? "cosmos-dark" : "flourish-light"
                 )
               }
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/90 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+              className="inline-flex min-h-[34px] shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/90 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700 whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
               aria-label="Toggle Sankey canvas background theme"
             >
               {isLightCanvas ? (
                 <>
-                  <Sun className="h-3.5 w-3.5 text-amber-400" />
+                  <Sun className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
                   <span>Canvas: Flourish Silk</span>
                 </>
               ) : (
                 <>
-                  <Moon className="h-3.5 w-3.5 text-sky-400" />
+                  <Moon className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
                   <span>Canvas: Dark Cosmos</span>
                 </>
               )}
@@ -1006,16 +1350,16 @@ export function NatureOfRealitySankey() {
               onClick={() =>
                 setTourEpochIndex((prev) => (prev === null ? 0 : null))
               }
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition-colors ${
+              className={`inline-flex min-h-[34px] shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold whitespace-nowrap transition-colors ${
                 tourEpochIndex !== null
                   ? "border-amber-400 bg-amber-500 text-slate-950"
                   : "border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
               }`}
             >
-              <Play className="h-3 w-3 fill-current" />
+              <Play className="h-3 w-3 fill-current" aria-hidden="true" />
               <span>
                 {tourEpochIndex !== null
-                  ? `Presenting Epoch ${tourEpochIndex + 1}/7`
+                  ? `Epoch ${tourEpochIndex + 1}/7`
                   : "Present Worldview"}
               </span>
             </button>
@@ -1024,25 +1368,46 @@ export function NatureOfRealitySankey() {
             <button
               type="button"
               onClick={handleSubmitToCommunityAggregate}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/50 bg-emerald-500/20 px-2.5 py-1 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              className="inline-flex min-h-[34px] shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/50 bg-emerald-500/20 px-2.5 py-1 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
             >
-              <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Submit to Crowd Forecast</span>
+              <Sparkles className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
+              <span>Submit to Crowd</span>
             </button>
 
             {(customEditCount > 0 || conditionedNodeId) && (
               <button
                 type="button"
                 onClick={handleResetAll}
-                className="inline-flex items-center gap-1 rounded-lg border border-rose-500/40 bg-rose-500/15 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-500/25"
+                className="inline-flex min-h-[34px] shrink-0 items-center gap-1 rounded-lg border border-rose-500/40 bg-rose-500/15 px-2.5 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-500/25 whitespace-nowrap"
               >
-                <RotateCcw className="h-3 w-3" />
+                <RotateCcw className="h-3 w-3" aria-hidden="true" />
                 <span>Reset</span>
               </button>
             )}
           </div>
         </div>
       </div>
+
+      {/* Unified Forecaster Agents, Kylen Creator Baseline, Crowd Wisdom & Variance Bar */}
+      <div className="shrink-0 border-b border-slate-800/80 bg-slate-950/95 px-4 py-1.5">
+        <div className="mx-auto max-w-[1800px]">
+          <UnifiedForecasterBar
+            forecasterState={forecasterState}
+            defaultBaselineLabel="Kylen McClintock (Creator)"
+            compact
+            focusedBranchNodeId={selectedNode?.id || null}
+            focusedBranchLabel={
+              selectedNode?.shortLabel || selectedNode?.name || null
+            }
+            onFocusNode={(nodeId) => {
+              setSelectedNodeId(nodeId);
+              setFocusedLineageNodeId(nodeId);
+            }}
+          />
+        </div>
+      </div>
+        </>
+      )}
 
       {/* Active Conditioning Banner or Community Submission Receipt Banner */}
       {(conditionedNode || lastSubmittedReceipt || tourEpochIndex !== null) && (
@@ -1509,12 +1874,18 @@ export function NatureOfRealitySankey() {
           </div>
         </div>
       ) : (
-        /* Split Studio, 7-Epoch Conditional Spine, or Full Canvas Mode */
-        <div className="flex flex-1 flex-col lg:flex-row min-h-0 overflow-hidden">
+        /* Full-Width Graph on Top + Deep-Dive Studio Underneath (or Full Screen Mode) */
+        <div
+          className={
+            isFullScreen
+              ? "flex flex-1 flex-col min-h-0 overflow-clip"
+              : "flex flex-col w-full"
+          }
+        >
           {studioMode === "spine" ? (
             /* Recommended 7-Epoch Overall Flow + Interactive Stage Cards View */
             <div
-              className={`flex-1 overflow-y-auto p-4 lg:p-5 select-text space-y-4 transition-colors ${
+              className={`w-full p-4 lg:p-5 select-text space-y-4 transition-colors ${
                 isLightCanvas
                   ? "bg-[#f8f6f0] text-slate-900"
                   : "bg-slate-950 text-slate-100"
@@ -1977,12 +2348,13 @@ export function NatureOfRealitySankey() {
             }}
             onMouseMove={(e) => {
               if (!isDragging || !dragStartRef.current) return;
-              const dx = e.clientX - dragStartRef.current.x;
-              const dy = e.clientY - dragStartRef.current.y;
-              if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+              const rawDx = e.clientX - dragStartRef.current.x;
+              const rawDy = e.clientY - dragStartRef.current.y;
+              if (Math.abs(rawDx) > 3 || Math.abs(rawDy) > 3) {
                 didPanDuringDragRef.current = true;
               }
               dragStartRef.current = { x: e.clientX, y: e.clientY };
+              const { dx, dy } = mobileViewport.mapScreenDelta(rawDx, rawDy);
               setCamera((prev) => ({
                 ...prev,
                 x: clamp(prev.x - dx * 1.4, -120, SANKEY_VIEWBOX.w - prev.w + 120),
@@ -2005,14 +2377,66 @@ export function NatureOfRealitySankey() {
                 setFocusedLineageNodeId(null);
               }
             }}
-            className={`relative flex-1 min-h-[380px] overflow-hidden transition-colors duration-300 ${
-              isDragging ? "cursor-grabbing" : "cursor-grab"
-            } ${
+            className={`relative w-full overflow-clip transition-colors duration-300 ${
+              isFullScreen
+                ? "flex-1 min-h-0 h-full"
+                : "h-[64dvh] min-h-[420px] sm:h-[70dvh] sm:min-h-[520px] lg:h-[76dvh]"
+            } ${isDragging ? "cursor-grabbing" : "cursor-grab"} ${
               isLightCanvas
                 ? "bg-[#fcfbf9] text-slate-900"
                 : "bg-[#070b14] text-slate-100"
             }`}
           >
+            {/* Prominent Top-Right Full Screen Toggle & Scroll-to-Details Control */}
+            <div
+              data-floating-ui
+              className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-20 flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 max-w-[calc(100%-1.25rem)]"
+            >
+              {!isFullScreen && selectedNode && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    document
+                      .getElementById("nor-node-studio")
+                      ?.scrollIntoView({ behavior: "smooth" })
+                  }
+                  className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1.5 text-xs font-bold shadow-lg backdrop-blur-md transition-colors max-w-[180px] sm:max-w-none ${
+                    isLightCanvas
+                      ? "border-slate-300 bg-white/95 text-slate-800 hover:bg-slate-100"
+                      : "border-slate-700 bg-slate-900/95 text-slate-200 hover:bg-slate-800"
+                  }`}
+                >
+                  <ArrowDown className="h-3.5 w-3.5 shrink-0 text-indigo-400" aria-hidden="true" />
+                  <span className="truncate">
+                    <span className="hidden sm:inline">Splits &amp; Citations: </span>
+                    <strong>{selectedNode.shortLabel || selectedNode.name}</strong>
+                  </span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() =>
+                  setStudioMode(isFullScreen ? "split" : "canvas")
+                }
+                className="inline-flex min-h-[36px] items-center gap-1.5 sm:gap-2 rounded-xl border border-indigo-400/90 bg-indigo-600 hover:bg-indigo-500 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-extrabold text-white keep-white shadow-xl shadow-indigo-950/50 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+              >
+                {isFullScreen ? (
+                  <>
+                    <Minimize2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="sm:hidden">Exit</span>
+                    <span className="hidden sm:inline">Exit Full Screen (Esc)</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="sm:hidden">Horizontal Full Screen</span>
+                    <span className="hidden sm:inline">Full Screen View</span>
+                  </>
+                )}
+              </button>
+            </div>
+
             {/* Active Lineage Magnification Floating Pill on Sankey Canvas */}
             {focusedLineageNodeId && (
               <div
@@ -2042,7 +2466,7 @@ export function NatureOfRealitySankey() {
                   onClick={() => setFocusedLineageNodeId(null)}
                   className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-indigo-500 keep-white"
                 >
-                  <RotateCcw className="h-3 w-3" />
+                  <RotateCcw className="h-3 w-3" aria-hidden="true" />
                   <span>Restore Normal Scale (Click Off)</span>
                 </button>
               </div>
@@ -2052,7 +2476,7 @@ export function NatureOfRealitySankey() {
             <svg
               role="img"
               viewBox={`${camera.x} ${camera.y} ${camera.w} ${camera.h}`}
-              className="h-full w-full"
+              className="block h-full w-full"
               preserveAspectRatio="xMidYMid meet"
             >
               <title>
@@ -2340,12 +2764,91 @@ export function NatureOfRealitySankey() {
                         >
                           ({formatPct(node.probability, 1)})
                         </tspan>
+                        {forecasterState.showVarianceFromCrowd &&
+                          forecasterState.varianceReport?.byNodeId[node.id] &&
+                          Math.abs(
+                            forecasterState.varianceReport.byNodeId[node.id]
+                              .signedDelta
+                          ) >= 0.01 && (
+                            <tspan
+                              fontWeight={800}
+                              fontSize={10}
+                              fill={
+                                forecasterState.varianceReport.byNodeId[node.id]
+                                  .signedDelta >= 0
+                                  ? isLightCanvas
+                                    ? "#047857"
+                                    : "#34d399"
+                                  : isLightCanvas
+                                  ? "#be123c"
+                                  : "#fb7185"
+                              }
+                            >
+                              {" "}
+                              [
+                              {forecasterState.varianceReport.byNodeId[node.id]
+                                .signedDelta > 0
+                                ? "+"
+                                : ""}
+                              {(
+                                forecasterState.varianceReport.byNodeId[node.id]
+                                  .signedDelta * 100
+                              ).toFixed(1)}
+                              %]
+                            </tspan>
+                          )}
                       </text>
                     </g>
                   );
                 })}
               </g>
             </svg>
+
+            {/* Mobile & Tablet Epoch Quick-Stepper (< xl) */}
+            <div
+              data-floating-ui
+              className={`absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 z-10 flex xl:hidden items-center gap-1 rounded-xl border px-2 py-1 text-xs shadow-lg backdrop-blur-md ${
+                isLightCanvas
+                  ? "border-slate-300 bg-white/95 text-slate-800"
+                  : "border-slate-800 bg-slate-900/95 text-slate-200"
+              }`}
+            >
+              <button
+                type="button"
+                aria-label="Previous Epoch"
+                onClick={() =>
+                  setTourEpochIndex((prev) =>
+                    prev === null ? 0 : Math.max(0, prev - 1)
+                  )
+                }
+                className="inline-flex min-h-[32px] min-w-[30px] items-center justify-center rounded-lg hover:bg-indigo-500/15"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setTourEpochIndex((prev) => (prev === null ? 0 : null))
+                }
+                className="min-h-[32px] px-1.5 font-mono text-[11px] font-bold tabular-nums whitespace-nowrap"
+              >
+                {tourEpochIndex !== null
+                  ? `Epoch ${tourEpochIndex + 1}/7`
+                  : "Step Epochs"}
+              </button>
+              <button
+                type="button"
+                aria-label="Next Epoch"
+                onClick={() =>
+                  setTourEpochIndex((prev) =>
+                    prev === null ? 0 : Math.min(6, prev + 1)
+                  )
+                }
+                className="inline-flex min-h-[32px] min-w-[30px] items-center justify-center rounded-lg hover:bg-indigo-500/15"
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
 
             {/* Bottom-Left Floating Quick Epoch 1 Root Priors Strip */}
             <div
@@ -2441,464 +2944,622 @@ export function NatureOfRealitySankey() {
           </div>
           )}
 
-          {/* Right Panel: Deep-Dive Probability Studio & Philosophical/Physics Citations */}
-          {(studioMode === "split" || studioMode === "spine") && selectedNode && (
-            <aside
-              aria-label="Selected Hypothesis Deep-Dive Probability Studio"
-              className="flex flex-col w-full lg:w-[470px] xl:w-[510px] lg:h-full shrink-0 border-t lg:border-t-0 lg:border-l border-slate-800 bg-slate-950 overflow-y-auto select-text"
-            >
-              {/* Node Header */}
-              <div className="border-b border-slate-800 bg-slate-900/80 p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white"
-                    style={{ backgroundColor: selectedNode.color }}
-                  >
-                    {
-                      NATURE_OF_REALITY_EPOCHS[selectedNode.columnIndex]
-                        ?.shortTitle
-                    }
-                  </span>
+          {/* Bottom Section (Under the Graph): Deep-Dive Probability Studio & Philosophical/Physics Citations */}
+          {!isFullScreen &&
+            (studioMode === "split" || studioMode === "spine") &&
+            selectedNode && (
+              <section
+                id="nor-node-studio"
+                aria-label="Selected Hypothesis Deep-Dive Probability Studio"
+                className="w-full border-t border-slate-800 bg-slate-950 select-text"
+              >
+                <div className="mx-auto max-w-[1800px] p-4 sm:p-6 space-y-5">
+                  {/* Top Row: Selected Node Overview & Probability Readout (Left) + Direct Target Slider & Worldview Export (Right) */}
+                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
+                    {/* Left: Node Header & 3-Way Probability Readout */}
+                    <div className="xl:col-span-7 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5 flex flex-col justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white keep-white"
+                              style={{ backgroundColor: selectedNode.color }}
+                            >
+                              {
+                                NATURE_OF_REALITY_EPOCHS[
+                                  selectedNode.columnIndex
+                                ]?.shortTitle
+                              }
+                            </span>
+                            <span className="text-[11px] font-mono text-slate-400">
+                              Active:{" "}
+                              <strong className="text-slate-200">
+                                {forecasterState.activeLensMode ===
+                                "individual_actor"
+                                  ? `${forecasterState.selectedActor?.displayName} (@${forecasterState.selectedActor?.handle})`
+                                  : forecasterState.activeLensMode ===
+                                    "crowd_wisdom"
+                                  ? `Crowd Wisdom (${forecasterState.crowdMode.replace(
+                                      "_",
+                                      " "
+                                    )})`
+                                  : "Kylen McClintock (Creator Baseline)"}
+                              </strong>
+                            </span>
+                          </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      aria-pressed={conditionedNodeId === selectedNode.id}
-                      onClick={() =>
-                        setConditionedNodeId(
-                          conditionedNodeId === selectedNode.id
-                            ? null
-                            : selectedNode.id
-                        )
-                      }
-                      className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors ${
-                        conditionedNodeId === selectedNode.id
-                          ? "border-amber-400 bg-amber-500 text-slate-950"
-                          : "border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
-                      }`}
-                    >
-                      <Focus className="h-3 w-3" />
-                      <span>
-                        {conditionedNodeId === selectedNode.id
-                          ? "Conditioned = 100%"
-                          : "Assume Node = 100%"}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-                <h2 className="mt-2 text-base font-extrabold text-white leading-snug">
-                  {selectedNode.name}
-                </h2>
-                <p className="mt-1 text-xs text-slate-300 leading-relaxed">
-                  {selectedNode.summary}
-                </p>
-
-                {/* Live Probability Readout Strip */}
-                <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-center">
-                  <div>
-                    <div className="text-[10px] font-mono uppercase text-slate-400">
-                      Your Probability
-                    </div>
-                    <div
-                      className="text-lg font-mono font-extrabold tabular-nums"
-                      style={{ color: selectedNode.color }}
-                    >
-                      {formatPct(selectedNode.probability, 2)}
-                    </div>
-                    <div className="text-[10px] font-mono text-slate-500 tabular-nums">
-                      ({formatFlowDecimal(selectedNode.probability)})
-                    </div>
-                  </div>
-                  <div className="border-x border-slate-800/80">
-                    <div className="text-[10px] font-mono uppercase text-slate-400">
-                      Author Baseline
-                    </div>
-                    <div className="text-base font-mono font-bold text-slate-200 tabular-nums mt-0.5">
-                      {formatPct(selectedNode.baselineProbability, 2)}
-                    </div>
-                    <div className="text-[10px] font-mono text-slate-500 tabular-nums">
-                      ({formatFlowDecimal(selectedNode.baselineProbability)})
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-mono uppercase text-sky-400">
-                      Crowd (N={communityCount})
-                    </div>
-                    <div className="text-base font-mono font-bold text-sky-300 tabular-nums mt-0.5">
-                      {formatPct(selectedNode.communityProbability, 2)}
-                    </div>
-                    <div className="text-[10px] font-mono text-slate-500 tabular-nums">
-                      ({formatFlowDecimal(selectedNode.communityProbability)})
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 1: Place Direct Overall Probability on This Node */}
-              <div className="border-b border-slate-800 bg-indigo-950/20 p-4">
-                <div className="flex items-center justify-between text-xs mb-2">
-                  <label
-                    htmlFor={`${uniqueIdPrefix}-insp-overall-slider`}
-                    className="flex items-center gap-1.5 font-bold text-indigo-300"
-                  >
-                    <Sliders className="h-3.5 w-3.5 text-indigo-400" />
-                    <span>
-                      {selectedNode.columnIndex === 0
-                        ? "Set Root Origin Prior Probability:"
-                        : "Set Direct Target Probability for This Node:"}
-                    </span>
-                  </label>
-                  <div className="flex items-center gap-1">
-                    <label
-                      htmlFor={`${uniqueIdPrefix}-insp-overall-num`}
-                      className="sr-only"
-                    >
-                      Exact overall percentage for {selectedNode.name}
-                    </label>
-                    <input
-                      id={`${uniqueIdPrefix}-insp-overall-num`}
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={0.1}
-                      value={Number(
-                        (selectedNode.probability * 100).toFixed(2)
-                      )}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value);
-                        if (!Number.isNaN(v)) {
-                          handleSetDirectNodeProbability(
-                            selectedNode.id,
-                            v / 100
-                          );
-                        }
-                      }}
-                      className="w-20 rounded border border-indigo-500/40 bg-slate-900 px-2 py-0.5 font-mono text-xs font-bold text-amber-300 tabular-nums focus:border-indigo-400 focus:outline-none"
-                    />
-                    <span className="font-mono text-xs text-slate-400">%</span>
-                  </div>
-                </div>
-
-                <input
-                  id={`${uniqueIdPrefix}-insp-overall-slider`}
-                  type="range"
-                  min={0.2}
-                  max={98}
-                  step={0.2}
-                  value={Number((selectedNode.probability * 100).toFixed(1))}
-                  onChange={(e) =>
-                    handleSetDirectNodeProbability(
-                      selectedNode.id,
-                      Number(e.target.value) / 100
-                    )
-                  }
-                  className="w-full accent-indigo-400"
-                />
-                <p className="mt-1 text-[11px] text-slate-400">
-                  {selectedNode.columnIndex === 0
-                    ? "Automatically rebalances the other 3 Epoch I root origins so Epoch I sums to 100%."
-                    : "Scales incoming conditional transitions from parent nodes and propagates forward to all downstream cosmic fates."}
-                </p>
-              </div>
-
-              {/* SECTION 2: Deep-Dive Outgoing Conditional Splits P(Target | Selected Node) */}
-              {selectedNode.outgoingLinkIds.length > 0 && (
-                <div className="border-b border-slate-800 p-4">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <div>
-                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-amber-300">
-                        Outgoing Conditional Splits P(Next |{" "}
-                        {selectedNode.shortLabel || selectedNode.name})
-                      </h3>
-                      <p className="text-[11px] text-slate-400">
-                        Given this node occurs, place exact conditional
-                        probabilities on what happens next (always sums to 100%):
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleResetNodeSplits(selectedNode.id)}
-                      className="rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-slate-300 hover:text-white"
-                    >
-                      Reset Node
-                    </button>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    {selectedNode.outgoingLinkIds.map((linkId) => {
-                      const link = graph.linkMap.get(linkId);
-                      if (!link) return null;
-                      const targetNode = graph.nodeMap.get(link.targetId);
-                      if (!targetNode) return null;
-
-                      const lockKey = `${selectedNode.id}->${targetNode.id}`;
-                      const isLocked = !!lockedLinks[lockKey];
-                      const sliderId = `${uniqueIdPrefix}-out-slider-${link.id}`;
-                      const numId = `${uniqueIdPrefix}-out-num-${link.id}`;
-
-                      return (
-                        <div
-                          key={link.id}
-                          className="rounded-xl border border-slate-800/90 bg-slate-900/60 p-2.5"
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <button
                               type="button"
-                              onClick={() => setSelectedNodeId(targetNode.id)}
-                              className="flex items-center gap-2 text-left text-xs font-bold text-white hover:text-sky-300 min-w-0"
-                            >
-                              <span
-                                className="h-3 w-3 rounded-sm shrink-0"
-                                style={{ backgroundColor: targetNode.color }}
-                              />
-                              <span className="truncate">{targetNode.name}</span>
-                            </button>
-
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                aria-pressed={isLocked}
-                                onClick={() =>
-                                  setLockedLinks((prev) => ({
-                                    ...prev,
-                                    [lockKey]: !prev[lockKey],
-                                  }))
-                                }
-                                className={`rounded p-1 text-[10px] ${
-                                  isLocked
-                                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                                    : "text-slate-500 hover:text-slate-300"
-                                }`}
-                                aria-label={
-                                  isLocked
-                                    ? `Unlock ${targetNode.name} conditional branch`
-                                    : `Lock ${targetNode.name} conditional branch`
-                                }
-                              >
-                                {isLocked ? (
-                                  <Lock className="h-3 w-3" />
-                                ) : (
-                                  <Unlock className="h-3 w-3" />
-                                )}
-                              </button>
-
-                              <label htmlFor={numId} className="sr-only">
-                                Exact conditional split percentage to{" "}
-                                {targetNode.name}
-                              </label>
-                              <input
-                                id={numId}
-                                type="number"
-                                min={0}
-                                max={100}
-                                step={0.1}
-                                disabled={isLocked}
-                                value={Number(
-                                  (link.conditionalProb * 100).toFixed(1)
-                                )}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
-                                  if (!Number.isNaN(val)) {
-                                    handleChangeConditionalSplit(
-                                      selectedNode.id,
-                                      targetNode.id,
-                                      val / 100
-                                    );
-                                  }
-                                }}
-                                className="w-16 rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 font-mono text-xs font-bold text-sky-300 tabular-nums disabled:opacity-50"
-                              />
-                              <span className="font-mono text-xs text-slate-400">
-                                %
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <label htmlFor={sliderId} className="sr-only">
-                              Conditional split slider to {targetNode.name}
-                            </label>
-                            <input
-                              id={sliderId}
-                              type="range"
-                              min={0}
-                              max={100}
-                              step={0.5}
-                              disabled={isLocked}
-                              value={Number(
-                                (link.conditionalProb * 100).toFixed(1)
-                              )}
-                              onChange={(e) =>
-                                handleChangeConditionalSplit(
-                                  selectedNode.id,
-                                  targetNode.id,
-                                  Number(e.target.value) / 100
+                              aria-pressed={
+                                conditionedNodeId === selectedNode.id
+                              }
+                              onClick={() =>
+                                setConditionedNodeId(
+                                  conditionedNodeId === selectedNode.id
+                                    ? null
+                                    : selectedNode.id
                                 )
                               }
-                              className="flex-1 accent-sky-400 disabled:opacity-40"
-                            />
-                            <span className="font-mono text-[10px] text-slate-400 tabular-nums w-28 text-right">
-                              Flow: {formatPct(link.flow, 2)}
-                            </span>
+                              className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                                conditionedNodeId === selectedNode.id
+                                  ? "border-amber-400 bg-amber-500 text-slate-950"
+                                  : "border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
+                              }`}
+                            >
+                              <Focus className="h-3 w-3" aria-hidden="true" />
+                              <span>
+                                {conditionedNodeId === selectedNode.id
+                                  ? "Conditioned = 100%"
+                                  : "Assume Node = 100%"}
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                forecasterState.openAgentStudio({
+                                  forkActor:
+                                    forecasterState.activeLensMode ===
+                                    "individual_actor"
+                                      ? forecasterState.selectedActor
+                                      : null,
+                                  scope: "branch",
+                                  branchNodeId: selectedNode.id,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/30 bg-slate-950 hover:bg-slate-900 px-2.5 py-1 text-[11px] font-mono text-cyan-300"
+                            >
+                              <GitBranch
+                                className="h-3 w-3"
+                                aria-hidden="true"
+                              />
+                              <span>Copy Branch Prompt</span>
+                            </button>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
-              {/* SECTION 3: Incoming Parent Ribbons (Upstream Contributors) */}
-              {selectedNode.incomingLinkIds.length > 0 && (
-                <div className="border-b border-slate-800 p-4">
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-sky-300 mb-1">
-                    Upstream Sources Flowing Into This Node
-                  </h3>
-                  <p className="text-[11px] text-slate-400 mb-2.5">
-                    Click any upstream cause to inspect it, or adjust its
-                    conditional transition directly:
-                  </p>
-                  <div className="space-y-1.5">
-                    {selectedNode.incomingLinkIds.map((linkId) => {
-                      const link = graph.linkMap.get(linkId);
-                      if (!link) return null;
-                      const sourceNode = graph.nodeMap.get(link.sourceId);
-                      if (!sourceNode) return null;
-                      const shareOfNode =
-                        selectedNode.probability > 1e-6
-                          ? link.flow / selectedNode.probability
-                          : 0;
-
-                      return (
-                        <div
-                          key={link.id}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-slate-800/80 bg-slate-900/40 px-2.5 py-1.5 text-xs"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setSelectedNodeId(sourceNode.id)}
-                            className="flex items-center gap-2 font-semibold text-slate-200 hover:text-white truncate"
-                          >
-                            <span
-                              className="h-2.5 w-2.5 rounded-full shrink-0"
-                              style={{ backgroundColor: sourceNode.color }}
-                            />
-                            <span className="truncate">{sourceNode.name}</span>
-                          </button>
-                          <div className="font-mono text-[11px] text-slate-300 shrink-0 tabular-nums">
-                            <span className="text-amber-300 font-bold">
-                              {formatPct(link.flow, 2)}
-                            </span>{" "}
-                            <span className="text-slate-500">
-                              ({Math.round(shareOfNode * 100)}% of node)
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* SECTION 4: Theoretical Mechanism & Cited Physics / Philosophy Literature */}
-              <div className="p-4 space-y-3">
-                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-300 mb-1">
-                    Theoretical & Cosmological Mechanism
-                  </div>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    {selectedNode.deepMechanism}
-                  </p>
-                </div>
-
-                <div>
-                  <div className="text-xs font-extrabold uppercase tracking-wider text-slate-300 mb-2">
-                    Key Academic & Philosophical Arguments (
-                    {selectedNode.citations.length})
-                  </div>
-                  <div className="space-y-2.5">
-                    {selectedNode.citations.map((cit, idx) => (
-                      <div
-                        key={`${selectedNode.id}-cit-${idx}`}
-                        className="rounded-xl border border-slate-800 bg-slate-900/70 p-3"
-                      >
-                        <div className="flex items-center justify-between gap-2 text-xs">
-                          <span className="font-bold text-white">
-                            {cit.author}{" "}
-                            <span className="font-mono text-[11px] text-sky-400 font-normal">
-                              @{cit.handle}
-                            </span>
-                          </span>
-                          <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-300 tabular-nums">
-                            ▲ {cit.upvotes}
-                          </span>
-                        </div>
-                        <div className="mt-0.5 text-[11px] font-medium text-amber-300/90">
-                          {cit.workTitle} ({cit.year})
-                        </div>
-                        <p className="mt-1.5 text-xs text-slate-300 leading-relaxed">
-                          {cit.thesis}
+                        <h2 className="mt-2.5 text-lg font-extrabold text-white leading-snug">
+                          {selectedNode.name}
+                        </h2>
+                        <p className="mt-1 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                          {selectedNode.summary}
                         </p>
-                        <div className="mt-2 flex items-center justify-between text-[11px]">
-                          <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-slate-400">
-                            {cit.platform}
-                          </span>
-                          <a
-                            href={cit.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-semibold text-sky-400 hover:text-sky-300 underline"
+
+                        {forecasterState.varianceReport?.byNodeId[
+                          selectedNode.id
+                        ]?.rationale && (
+                          <div className="mt-3 rounded-xl border border-violet-500/30 bg-violet-950/20 p-2.5 text-xs text-slate-200">
+                            <div className="text-[10px] font-mono uppercase text-violet-300 mb-0.5">
+                              Forecaster Fork Rationale
+                            </div>
+                            <p className="text-[11px] text-slate-300 leading-relaxed">
+                              {
+                                forecasterState.varianceReport.byNodeId[
+                                  selectedNode.id
+                                ].rationale
+                              }
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Live Probability Readout Strip */}
+                      <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-slate-800 bg-slate-950 p-3 text-center">
+                        <div>
+                          <div className="text-[10px] font-mono uppercase text-slate-400">
+                            Your Probability
+                          </div>
+                          <div
+                            className="text-xl font-mono font-extrabold tabular-nums"
+                            style={{ color: selectedNode.color }}
                           >
-                            Read Source ({cit.workTitle.slice(0, 24)}…) ↗
-                          </a>
+                            {formatPct(selectedNode.probability, 2)}
+                          </div>
+                          <div className="text-[10px] font-mono text-slate-500 tabular-nums">
+                            ({formatFlowDecimal(selectedNode.probability)})
+                          </div>
+                        </div>
+                        <div className="border-x border-slate-800/80">
+                          <div className="text-[10px] font-mono uppercase text-slate-400">
+                            Kylen Baseline
+                          </div>
+                          <div className="text-lg font-mono font-bold text-slate-200 tabular-nums mt-0.5">
+                            {formatPct(selectedNode.baselineProbability, 2)}
+                          </div>
+                          <div className="text-[10px] font-mono text-slate-500 tabular-nums">
+                            (
+                            {formatFlowDecimal(
+                              selectedNode.baselineProbability
+                            )}
+                            )
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-mono uppercase text-sky-400">
+                            Crowd Wisdom
+                          </div>
+                          <div className="text-lg font-mono font-bold text-sky-300 tabular-nums mt-0.5">
+                            {formatPct(
+                              forecasterState.crowdDistribution
+                                .nodeOverallProbabilities[selectedNode.id] ??
+                                selectedNode.communityProbability,
+                              2
+                            )}
+                          </div>
+                          <div className="text-[10px] font-mono text-slate-500 tabular-nums">
+                            {(() => {
+                              const crowdP =
+                                forecasterState.crowdDistribution
+                                  .nodeOverallProbabilities[selectedNode.id] ??
+                                selectedNode.communityProbability;
+                              const diff =
+                                (selectedNode.probability - crowdP) * 100;
+                              return `${diff >= 0 ? "+" : ""}${diff.toFixed(
+                                1
+                              )}% vs Crowd`;
+                            })()}
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
 
-                {/* Personal Worldview Naming & Export Card */}
-                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-2">
-                  <label
-                    htmlFor={`${uniqueIdPrefix}-worldview-title`}
-                    className="block text-[11px] font-bold uppercase tracking-wider text-slate-400"
-                  >
-                    Personal Worldview Title (For Presentation & Crowd Pool)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      id={`${uniqueIdPrefix}-worldview-title`}
-                      type="text"
-                      value={customWorldviewTitle}
-                      onChange={(e) => setCustomWorldviewTitle(e.target.value)}
-                      className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs text-white focus:border-indigo-400 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard?.writeText(window.location.href);
-                        setCopiedShareLink(true);
-                        setTimeout(() => setCopiedShareLink(false), 2000);
-                      }}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700"
-                    >
-                      <Share2 className="h-3 w-3 text-sky-400" />
-                      <span>{copiedShareLink ? "Copied!" : "Share"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExportJson}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700"
-                    >
-                      <Download className="h-3 w-3 text-emerald-400" />
-                      <span>JSON</span>
-                    </button>
+                    {/* Right: Direct Target Probability Slider + Personal Worldview Title / Export */}
+                    <div className="xl:col-span-5 rounded-2xl border border-indigo-500/30 bg-indigo-950/15 p-4 sm:p-5 flex flex-col justify-between gap-4">
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-2.5">
+                          <label
+                            htmlFor={`${uniqueIdPrefix}-insp-overall-slider`}
+                            className="flex items-center gap-1.5 font-bold text-indigo-300"
+                          >
+                            <Sliders
+                              className="h-4 w-4 text-indigo-400"
+                              aria-hidden="true"
+                            />
+                            <span>
+                              {selectedNode.columnIndex === 0
+                                ? "Set Root Origin Prior Probability:"
+                                : "Set Direct Target Probability for This Node:"}
+                            </span>
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <label
+                              htmlFor={`${uniqueIdPrefix}-insp-overall-num`}
+                              className="sr-only"
+                            >
+                              Exact overall percentage for {selectedNode.name}
+                            </label>
+                            <input
+                              id={`${uniqueIdPrefix}-insp-overall-num`}
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={0.1}
+                              value={Number(
+                                (selectedNode.probability * 100).toFixed(2)
+                              )}
+                              onChange={(e) => {
+                                const v = parseFloat(e.target.value);
+                                if (!Number.isNaN(v)) {
+                                  handleSetDirectNodeProbability(
+                                    selectedNode.id,
+                                    v / 100
+                                  );
+                                }
+                              }}
+                              className="w-20 rounded-lg border border-indigo-500/40 bg-slate-900 px-2 py-1 font-mono text-xs font-bold text-amber-300 tabular-nums focus:border-indigo-400 focus:outline-none"
+                            />
+                            <span className="font-mono text-xs text-slate-400">
+                              %
+                            </span>
+                          </div>
+                        </div>
+
+                        <input
+                          id={`${uniqueIdPrefix}-insp-overall-slider`}
+                          type="range"
+                          min={0.2}
+                          max={98}
+                          step={0.2}
+                          value={Number(
+                            (selectedNode.probability * 100).toFixed(1)
+                          )}
+                          onChange={(e) =>
+                            handleSetDirectNodeProbability(
+                              selectedNode.id,
+                              Number(e.target.value) / 100
+                            )
+                          }
+                          className="w-full accent-indigo-400"
+                        />
+                        <p className="mt-1.5 text-[11px] text-slate-400 leading-relaxed">
+                          {selectedNode.columnIndex === 0
+                            ? "Automatically rebalances the other 3 Epoch I root origins so Epoch I sums to 100%."
+                            : "Scales incoming conditional transitions from parent nodes and propagates forward to all downstream cosmic fates."}
+                        </p>
+                      </div>
+
+                      {/* Personal Worldview Naming & Export Card */}
+                      <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 space-y-2">
+                        <label
+                          htmlFor={`${uniqueIdPrefix}-worldview-title`}
+                          className="block text-[11px] font-bold uppercase tracking-wider text-slate-400"
+                        >
+                          Personal Worldview Title (For Presentation &amp; Crowd
+                          Pool)
+                        </label>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            id={`${uniqueIdPrefix}-worldview-title`}
+                            type="text"
+                            value={customWorldviewTitle}
+                            onChange={(e) =>
+                              setCustomWorldviewTitle(e.target.value)
+                            }
+                            className="flex-1 min-w-[160px] rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white focus:border-indigo-400 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(
+                                window.location.href
+                              );
+                              setCopiedShareLink(true);
+                              setTimeout(() => setCopiedShareLink(false), 2000);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+                          >
+                            <Share2
+                              className="h-3 w-3 text-sky-400"
+                              aria-hidden="true"
+                            />
+                            <span>{copiedShareLink ? "Copied!" : "Share"}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleExportJson}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+                          >
+                            <Download
+                              className="h-3 w-3 text-emerald-400"
+                              aria-hidden="true"
+                            />
+                            <span>JSON</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Row: 3-Column Deep-Dive Grid — Outgoing Splits | Upstream Sources + Mechanism | Cited Academic Literature */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                    {/* Column 1: Outgoing Conditional Splits P(Next | Selected Node) */}
+                    <div className="lg:col-span-5 rounded-2xl border border-slate-800 bg-slate-900/50 p-4 sm:p-5">
+                      {selectedNode.outgoingLinkIds.length > 0 ? (
+                        <>
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <div>
+                              <h3 className="text-xs font-extrabold uppercase tracking-wider text-amber-300">
+                                Outgoing Conditional Splits P(Next |{" "}
+                                {selectedNode.shortLabel || selectedNode.name})
+                              </h3>
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                Given this node occurs, place exact conditional
+                                probabilities on what happens next (always sums
+                                to 100%):
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleResetNodeSplits(selectedNode.id)
+                              }
+                              className="shrink-0 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-[10px] font-semibold text-slate-300 hover:text-white"
+                            >
+                              Reset Node
+                            </button>
+                          </div>
+
+                          <div className="space-y-2.5">
+                            {selectedNode.outgoingLinkIds.map((linkId) => {
+                              const link = graph.linkMap.get(linkId);
+                              if (!link) return null;
+                              const targetNode = graph.nodeMap.get(
+                                link.targetId
+                              );
+                              if (!targetNode) return null;
+
+                              const lockKey = `${selectedNode.id}->${targetNode.id}`;
+                              const isLocked = !!lockedLinks[lockKey];
+                              const sliderId = `${uniqueIdPrefix}-out-slider-${link.id}`;
+                              const numId = `${uniqueIdPrefix}-out-num-${link.id}`;
+
+                              return (
+                                <div
+                                  key={link.id}
+                                  className="rounded-xl border border-slate-800/90 bg-slate-950/70 p-2.5"
+                                >
+                                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedNodeId(targetNode.id)
+                                      }
+                                      className="flex items-center gap-2 text-left text-xs font-bold text-white hover:text-sky-300 min-w-0"
+                                    >
+                                      <span
+                                        className="h-3 w-3 rounded-sm shrink-0"
+                                        style={{
+                                          backgroundColor: targetNode.color,
+                                        }}
+                                      />
+                                      <span className="truncate">
+                                        {targetNode.name}
+                                      </span>
+                                    </button>
+
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        aria-pressed={isLocked}
+                                        onClick={() =>
+                                          setLockedLinks((prev) => ({
+                                            ...prev,
+                                            [lockKey]: !prev[lockKey],
+                                          }))
+                                        }
+                                        className={`rounded p-1 text-[10px] ${
+                                          isLocked
+                                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                                            : "text-slate-500 hover:text-slate-300"
+                                        }`}
+                                        aria-label={
+                                          isLocked
+                                            ? `Unlock ${targetNode.name} conditional branch`
+                                            : `Lock ${targetNode.name} conditional branch`
+                                        }
+                                      >
+                                        {isLocked ? (
+                                          <Lock className="h-3 w-3" />
+                                        ) : (
+                                          <Unlock className="h-3 w-3" />
+                                        )}
+                                      </button>
+
+                                      <label htmlFor={numId} className="sr-only">
+                                        Exact conditional split percentage to{" "}
+                                        {targetNode.name}
+                                      </label>
+                                      <input
+                                        id={numId}
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        step={0.1}
+                                        disabled={isLocked}
+                                        value={Number(
+                                          (link.conditionalProb * 100).toFixed(
+                                            1
+                                          )
+                                        )}
+                                        onChange={(e) => {
+                                          const val = parseFloat(
+                                            e.target.value
+                                          );
+                                          if (!Number.isNaN(val)) {
+                                            handleChangeConditionalSplit(
+                                              selectedNode.id,
+                                              targetNode.id,
+                                              val / 100
+                                            );
+                                          }
+                                        }}
+                                        className="w-16 rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 font-mono text-xs font-bold text-sky-300 tabular-nums disabled:opacity-50"
+                                      />
+                                      <span className="font-mono text-xs text-slate-400">
+                                        %
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <label
+                                      htmlFor={sliderId}
+                                      className="sr-only"
+                                    >
+                                      Conditional split slider to{" "}
+                                      {targetNode.name}
+                                    </label>
+                                    <input
+                                      id={sliderId}
+                                      type="range"
+                                      min={0}
+                                      max={100}
+                                      step={0.5}
+                                      disabled={isLocked}
+                                      value={Number(
+                                        (link.conditionalProb * 100).toFixed(1)
+                                      )}
+                                      onChange={(e) =>
+                                        handleChangeConditionalSplit(
+                                          selectedNode.id,
+                                          targetNode.id,
+                                          Number(e.target.value) / 100
+                                        )
+                                      }
+                                      className="flex-1 accent-sky-400 disabled:opacity-40"
+                                    />
+                                    <span className="font-mono text-[10px] text-slate-400 tabular-nums w-28 text-right">
+                                      Flow: {formatPct(link.flow, 2)}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      ) : (
+                        <div>
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-amber-300 mb-1.5">
+                            Terminal Cosmic Endpoint (Epoch VII)
+                          </h3>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            <strong>{selectedNode.name}</strong> is a final
+                            Epoch VII cosmic fate with no downstream branches.
+                            Its overall probability (
+                            <strong>
+                              {formatPct(selectedNode.probability, 2)}
+                            </strong>
+                            ) is determined by the upstream cosmological and
+                            simulation trajectories flowing into it. Click any
+                            upstream source in the middle column to adjust the
+                            transitions leading here.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Column 2: Upstream Contributors + Theoretical Mechanism */}
+                    <div className="lg:col-span-3 space-y-4">
+                      {selectedNode.incomingLinkIds.length > 0 && (
+                        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-sky-300 mb-1">
+                            Upstream Sources Flowing Into This Node
+                          </h3>
+                          <p className="text-[11px] text-slate-400 mb-2.5">
+                            Click any upstream cause to inspect or tune its
+                            transition:
+                          </p>
+                          <div className="space-y-1.5">
+                            {selectedNode.incomingLinkIds.map((linkId) => {
+                              const link = graph.linkMap.get(linkId);
+                              if (!link) return null;
+                              const sourceNode = graph.nodeMap.get(
+                                link.sourceId
+                              );
+                              if (!sourceNode) return null;
+                              const shareOfNode =
+                                selectedNode.probability > 1e-6
+                                  ? link.flow / selectedNode.probability
+                                  : 0;
+
+                              return (
+                                <div
+                                  key={link.id}
+                                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-800/80 bg-slate-950/60 px-2.5 py-1.5 text-xs"
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedNodeId(sourceNode.id)
+                                    }
+                                    className="flex items-center gap-2 font-semibold text-slate-200 hover:text-white truncate"
+                                  >
+                                    <span
+                                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                                      style={{
+                                        backgroundColor: sourceNode.color,
+                                      }}
+                                    />
+                                    <span className="truncate">
+                                      {sourceNode.name}
+                                    </span>
+                                  </button>
+                                  <div className="font-mono text-[11px] text-slate-300 shrink-0 tabular-nums">
+                                    <span className="text-amber-300 font-bold">
+                                      {formatPct(link.flow, 2)}
+                                    </span>{" "}
+                                    <span className="text-slate-500">
+                                      ({Math.round(shareOfNode * 100)}%)
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                        <div className="text-xs font-extrabold uppercase tracking-wider text-indigo-300 mb-1.5">
+                          Theoretical &amp; Cosmological Mechanism
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          {selectedNode.deepMechanism}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Column 3: Key Academic & Philosophical Arguments */}
+                    <div className="lg:col-span-4 rounded-2xl border border-slate-800 bg-slate-900/50 p-4 sm:p-5">
+                      <div className="text-xs font-extrabold uppercase tracking-wider text-slate-300 mb-3">
+                        Key Academic &amp; Philosophical Arguments (
+                        {selectedNode.citations.length})
+                      </div>
+                      <div className="space-y-2.5">
+                        {selectedNode.citations.map((cit, idx) => (
+                          <div
+                            key={`${selectedNode.id}-cit-${idx}`}
+                            className="rounded-xl border border-slate-800 bg-slate-950/70 p-3"
+                          >
+                            <div className="flex items-center justify-between gap-2 text-xs">
+                              <span className="font-bold text-white">
+                                {cit.author}{" "}
+                                <span className="font-mono text-[11px] text-sky-400 font-normal">
+                                  @{cit.handle}
+                                </span>
+                              </span>
+                              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-300 tabular-nums">
+                                ▲ {cit.upvotes}
+                              </span>
+                            </div>
+                            <div className="mt-0.5 text-[11px] font-medium text-amber-300/90">
+                              {cit.workTitle} ({cit.year})
+                            </div>
+                            <p className="mt-1.5 text-xs text-slate-300 leading-relaxed">
+                              {cit.thesis}
+                            </p>
+                            <div className="mt-2 flex items-center justify-between text-[11px]">
+                              <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-slate-400">
+                                {cit.platform}
+                              </span>
+                              <a
+                                href={cit.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-semibold text-sky-400 hover:text-sky-300 underline"
+                              >
+                                Read Source ({cit.workTitle.slice(0, 24)}…) ↗
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </aside>
-          )}
+              </section>
+            )}
         </div>
       )}
     </div>

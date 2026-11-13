@@ -6,29 +6,101 @@ import {
   Activity,
   ArrowRight,
   ArrowUpRight,
+  Bot,
   Compass,
   ExternalLink,
   GitBranch,
   Mail,
+  Plus,
   Scale,
   Sparkles,
+  User,
+  Users,
 } from "lucide-react";
 import { computeLevDashboard } from "@/lib/lev-engine";
 import { LEVL_TRAJECTORY_REFERENCE } from "@/data/lev-seed";
+import {
+  ALL_SEED_FORECASTER_ACTORS,
+  SEED_FORECASTER_ACTORS,
+  SEED_GRAPH_FORECAST_RUNS,
+} from "@/data/starter-agents-seed";
+import {
+  computeCrowdDistribution,
+  computeOverlayLevDashboard,
+} from "@/lib/forecaster-engine";
+import { CrowdEnsembleMode } from "@/types/forecaster";
 
 type FeaturedGraphId = "lev" | "ai-2050" | "nature-of-reality";
+type HomeLevLens = "levl_default" | "crowd_wisdom" | string;
 
 export function HomeGallery() {
   const [featuredId, setFeaturedId] = useState<FeaturedGraphId>("lev");
   const [readerAge, setReaderAge] = useState<number>(35);
+  const [levLens, setLevLens] = useState<HomeLevLens>("levl_default");
+  const [levCrowdMode, setLevCrowdMode] =
+    useState<CrowdEnsembleMode>("all_ensemble");
 
-  const levData = useMemo(() => {
+  const baseLevData = useMemo(() => {
     return computeLevDashboard({
       referenceDate: new Date(),
       updateMode: "conservative",
       currentChronologicalAge: readerAge,
     });
   }, [readerAge]);
+
+  const levCrowdDist = useMemo(() => {
+    return computeCrowdDistribution(
+      "lev",
+      levCrowdMode,
+      ALL_SEED_FORECASTER_ACTORS,
+      SEED_GRAPH_FORECAST_RUNS
+    );
+  }, [levCrowdMode]);
+
+  const levData = useMemo(() => {
+    if (levLens === "levl_default") {
+      return baseLevData;
+    }
+    if (levLens === "crowd_wisdom" && levCrowdDist.levForecast) {
+      return computeOverlayLevDashboard({
+        baseDashboard: baseLevData,
+        targetForecast: levCrowdDist.levForecast,
+        currentChronologicalAge: readerAge,
+      });
+    }
+    const actorRun = SEED_GRAPH_FORECAST_RUNS.find(
+      (r) => r.graphId === "lev" && r.actorHandle === levLens
+    );
+    if (actorRun?.levForecast) {
+      return computeOverlayLevDashboard({
+        baseDashboard: baseLevData,
+        targetForecast: actorRun.levForecast,
+        currentChronologicalAge: readerAge,
+      });
+    }
+    return baseLevData;
+  }, [baseLevData, levLens, levCrowdDist, readerAge]);
+
+  const levYearDeltaVsLevl = useMemo(() => {
+    if (levLens === "levl_default") return null;
+    return Number(
+      (levData.aggregate99thYear - baseLevData.aggregate99thYear).toFixed(1)
+    );
+  }, [levData.aggregate99thYear, baseLevData.aggregate99thYear, levLens]);
+
+  const featuredWorldviewActors = useMemo(() => {
+    const handles = [
+      "kylen",
+      "kurzweil_horizon",
+      "sentinel_treaty",
+      "amdahl_realist",
+      "tetlock_calib",
+      "everett_sim",
+    ];
+    return handles
+      .map((h) => SEED_FORECASTER_ACTORS.find((a) => a.handle === h))
+      .filter((a): a is NonNullable<typeof a> => Boolean(a));
+  }, []);
 
   // Coordinate helper for the Featured LEV Trajectory Canvas (860 x 310)
   const levHeroChart = useMemo(() => {
@@ -184,15 +256,122 @@ export function HomeGallery() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2.5">
+                {/* Compact Lens Toggle: LEVL / Default vs Crowd Wisdom vs Individual Forecaster */}
+                <div
+                  role="group"
+                  aria-label="LEV forecast lens"
+                  className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-slate-700/80 bg-slate-950/90 p-1"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={levLens === "levl_default"}
+                    onClick={() => setLevLens("levl_default")}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
+                      levLens === "levl_default"
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    LEVL / Default
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={levLens === "crowd_wisdom"}
+                    onClick={() => setLevLens("crowd_wisdom")}
+                    className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
+                      levLens === "crowd_wisdom"
+                        ? "bg-sky-500/20 text-sky-300 border border-sky-500/40"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <Users className="h-3 w-3" aria-hidden="true" />
+                    <span>Crowd Wisdom</span>
+                  </button>
+
+                  {levLens === "crowd_wisdom" && (
+                    <div
+                      role="group"
+                      aria-label="Crowd ensemble composition"
+                      className="inline-flex items-center gap-0.5 rounded-lg bg-slate-900 px-1 py-0.5 border border-slate-800"
+                    >
+                      {(
+                        [
+                          { id: "all_ensemble", label: "All" },
+                          { id: "humans_markets", label: "Humans+Mkts" },
+                          { id: "agents_only", label: "AI Agents" },
+                        ] as const
+                      ).map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          aria-pressed={levCrowdMode === m.id}
+                          onClick={() => setLevCrowdMode(m.id)}
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-mono font-semibold transition-colors ${
+                            levCrowdMode === m.id
+                              ? "bg-sky-500/25 text-sky-200"
+                              : "text-slate-400 hover:text-slate-200"
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <label htmlFor="home-lev-actor-select" className="sr-only">
+                    Inspect individual forecaster on LEV
+                  </label>
+                  <select
+                    id="home-lev-actor-select"
+                    value={
+                      levLens !== "levl_default" && levLens !== "crowd_wisdom"
+                        ? levLens
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setLevLens(val ? val : "levl_default");
+                    }}
+                    className="rounded-lg bg-slate-900 border border-slate-800 px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/60"
+                  >
+                    <option value="">Forecaster…</option>
+                    <optgroup label="Worldview Agents">
+                      {featuredWorldviewActors
+                        .filter((a) => a.actorType === "ai_agent")
+                        .map((a) => (
+                          <option key={a.handle} value={a.handle}>
+                            🤖 {a.displayName}
+                          </option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="Creator & Longevity Researchers">
+                      <option value="kylen">👤 Kylen McClintock (Creator)</option>
+                      {ALL_SEED_FORECASTER_ACTORS.filter((a) =>
+                        a.handle.startsWith("lev_")
+                      ).map((a) => (
+                        <option key={a.handle} value={a.handle}>
+                          👤 {a.displayName}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+
                 <Link
                   href="/lev#embed-studio"
                   className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:border-amber-500/50 hover:text-amber-300 transition-colors"
                 >
                   <Mail className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Embed in Newsletter / Site</span>
+                  <span>Embed</span>
                 </Link>
                 <Link
-                  href="/lev"
+                  href={
+                    levLens === "crowd_wisdom"
+                      ? `/lev?forecaster=crowd&crowd=${levCrowdMode}`
+                      : levLens !== "levl_default"
+                      ? `/lev?forecaster=${encodeURIComponent(levLens)}&variance=1`
+                      : "/lev"
+                  }
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white keep-white shadow-sm transition-colors"
                 >
                   <span>Open Full LEV Observatory</span>
@@ -219,9 +398,26 @@ export function HomeGallery() {
                       <span className="text-[11px] text-slate-400 block">
                         Aggregate LEV Date
                       </span>
-                      <span className="text-2xl font-mono font-extrabold text-white tabular-nums">
-                        {levData.aggregate99thFormatted}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-mono font-extrabold text-white tabular-nums">
+                          {levData.aggregate99thFormatted}
+                        </span>
+                        {levYearDeltaVsLevl !== null && (
+                          <span
+                            className={`rounded-md px-1.5 py-0.5 text-[11px] font-mono font-bold tabular-nums ${
+                              levYearDeltaVsLevl <= 0
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                                : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                            }`}
+                            title="Signed year variance vs. LEVL / Default baseline"
+                          >
+                            {levYearDeltaVsLevl > 0
+                              ? `+${levYearDeltaVsLevl}y`
+                              : `${levYearDeltaVsLevl}y`}{" "}
+                            vs LEVL
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right">
                       <span className="text-[11px] text-slate-400 block">
@@ -608,8 +804,131 @@ export function HomeGallery() {
                 </div>
               ))}
             </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs text-slate-300">
+              <span>
+                Default Baseline:{" "}
+                <strong className="text-emerald-300">
+                  Kylen McClintock (@kylen)
+                </strong>{" "}
+                — full 43-node personal distribution preserved, toggleable vs. Crowd Wisdom &amp; 5 AI Agents.
+              </span>
+              <Link
+                href="/scenarios/nature-of-reality?forecaster=kylen&variance=1"
+                className="font-mono text-sky-300 hover:underline"
+              >
+                Inspect Δ vs. Crowd →
+              </Link>
+            </div>
           </div>
         )}
+      </section>
+
+      {/* SECTION 1.5: Compact Worldview Agents & Personal Distributions Strip */}
+      <section
+        aria-labelledby="home-agents-strip-heading"
+        className="rounded-3xl border border-slate-800 bg-slate-900/65 p-5 sm:p-6 space-y-4"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <h2
+              id="home-agents-strip-heading"
+              className="text-lg sm:text-xl font-extrabold text-white"
+            >
+              Worldview Agents &amp; Personal Forecast Distributions
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400">
+              Click any forecaster to render their full probability tree and{" "}
+              <span className="font-mono text-sky-300">Δ vs. Crowd</span>{" "}
+              variance, or copy any branch into your own LLM in 1 click.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/agents?studio=1"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 px-3.5 py-2 text-xs font-bold text-white keep-white transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Create / Test Your Agent</span>
+            </Link>
+            <Link
+              href="/agents"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:border-cyan-500/50 hover:text-cyan-300 transition-colors"
+            >
+              <span>All 18 Forecasters &amp; Prompts</span>
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          {featuredWorldviewActors.map((actor) => {
+            const levRun = SEED_GRAPH_FORECAST_RUNS.find(
+              (r) => r.graphId === "lev" && r.actorHandle === actor.handle
+            );
+            return (
+              <div
+                key={actor.handle}
+                className="rounded-2xl border border-slate-800/90 bg-slate-950/85 p-3.5 flex flex-col justify-between gap-2.5 hover:border-slate-700 transition-colors"
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono font-bold border"
+                      style={{
+                        borderColor: `${actor.worldview.accentColor}55`,
+                        color: actor.worldview.accentColor,
+                        backgroundColor: `${actor.worldview.accentColor}15`,
+                      }}
+                    >
+                      {actor.actorType === "ai_agent" ? (
+                        <Bot className="h-2.5 w-2.5" aria-hidden="true" />
+                      ) : (
+                        <User className="h-2.5 w-2.5" aria-hidden="true" />
+                      )}
+                      <span>{actor.shortBadge}</span>
+                    </span>
+                    {levRun?.levForecast && (
+                      <span className="text-[10px] font-mono text-slate-400 tabular-nums">
+                        LEV {Math.round(levRun.levForecast.p99Year)}
+                      </span>
+                    )}
+                  </div>
+                  <Link
+                    href={`/u/${actor.handle}`}
+                    className="block text-xs font-bold text-white hover:text-cyan-300 truncate"
+                  >
+                    {actor.displayName}
+                  </Link>
+                  <p className="text-[11px] text-slate-400 line-clamp-2 leading-snug">
+                    {actor.worldview.coreThesis}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-slate-800/80 text-[11px] font-mono">
+                  <Link
+                    href={`/scenarios/ai-2050?forecaster=${actor.handle}&variance=1`}
+                    className="text-amber-300 hover:underline"
+                  >
+                    AI 2050
+                  </Link>
+                  <Link
+                    href={`/scenarios/nature-of-reality?forecaster=${actor.handle}&variance=1`}
+                    className="text-sky-300 hover:underline"
+                  >
+                    Reality
+                  </Link>
+                  <Link
+                    href={`/lev?forecaster=${actor.handle}&variance=1`}
+                    className="text-emerald-300 hover:underline"
+                  >
+                    LEV
+                  </Link>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       {/* SECTION 2: Clean Subgrid Preview Cards of All FutureGraph Atlases */}

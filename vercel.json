@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/futuregraph/api/v1/oracles/sync",
+      "schedule": "0 13 * * *"
+    }
+  ]
+}
