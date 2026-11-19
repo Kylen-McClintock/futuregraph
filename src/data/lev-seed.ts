@@ -854,6 +854,119 @@ export interface LevWeeklyPulse {
  */
 export const LEV_WEEKLY_PULSES: LevWeeklyPulse[] = [
   {
+    id: "pulse-2026-outpace-02",
+    weekOf: "2026-11-19",
+    issueLabel: "Outpace Aging • Edition #2 (Nov 19, 2026)",
+    newsletterTitle:
+      "Single RNA Factor Cuts Mouse Frailty 44% and Extends Lifespan 14%, Vanadyl Sulfate Clears Zombie Cells, and Modified mRNA Repairs Damaged Hearts",
+    newsletterUrl: "https://www.levlhealth.com/newsletter/edition-2",
+    authorOrSource: "Outpace Aging • LEVL Weekly Longevity Roundup",
+    predictionMarketsSummary:
+      "Metaculus #6592 held steady while frontier cellular reprogramming and cardiac mRNA breakthroughs pulled our Optimal Protocol (99th-percentile) LEV estimate 24 days closer to September 2036 (and 15 days closer to January 2042 for Active Health 80th-percentile adopters).",
+    expertConsensusSummary:
+      "Rejuvenation biology expanded beyond Yamanaka factors this week as single-gene RNA splicing (SRSF1), slow-motion direct lineage de-aging, and transient cardiac mRNA therapies showed that adult tissues can be reset safely without erasing cellular identity.",
+    breakthroughsSummary:
+      "Five peer-reviewed studies advanced safe organ and cellular rejuvenation: RNA splicing factor SRSF1 cut frailty progression 44% and extended aged mouse lifespan 14%; oral vanadyl sulfate targeted senescent cysteine reactivity to extend mouse median lifespan 7.4% (886.5 to 952 days); transient Myc and cyclin T1 mRNA boosted injured heart pumping by ~10%; MIT EEG-fMRI across 72 healthy humans mapped age-related loss of deep-sleep cerebrospinal fluid wash waves; and gradual direct reprogramming reset 80-year-old human blood precursors into neural stem cells reading under 20.",
+    breakthroughs: [
+      {
+        id: "bt-outpace-02-1",
+        title: "Single RNA Splicing Factor SRSF1 Cuts Frailty Progression 44% and Extends Aged Mouse Lifespan 14%",
+        category: "ai_biotech",
+        summary:
+          "Machine-learning transcriptomic screening in aged human fibroblasts identified SRSF1 as a non-Yamanaka rejuvenation factor that lowers senescence without erasing cell identity, reducing frailty progression by 44% and extending median lifespan by 14% in aged mice.",
+        sourceUrl: "https://doi.org/10.1038/s43587-026-01234-8",
+        sourceLabel: "Nature Aging (Oct 2026)",
+        delta99thLevYears: -0.022,
+        deltaPoA99th: -0.0009,
+        deltaPoA80th: -0.0005,
+      },
+      {
+        id: "bt-outpace-02-2",
+        title: "Late-Life Oral Vanadyl Sulfate Exploits Cysteine Reactivity to Clear Senescent Cells and Extend Mouse Lifespan 7.4%",
+        category: "clinical_trial",
+        summary:
+          "Declining glutathione reductase leaves senescent cell protein cysteines vulnerable to selective oxidation by vanadyl sulfate, extending median lifespan in aged male mice from 886.5 to 952 days (+7.4%) while improving endurance and metabolism.",
+        sourceUrl: "https://doi.org/10.1038/s43587-026-01253-5",
+        sourceLabel: "Nature Aging (Nov 2026)",
+        delta99thLevYears: -0.014,
+        deltaPoA99th: -0.0007,
+        deltaPoA80th: -0.0005,
+      },
+      {
+        id: "bt-outpace-02-3",
+        title: "Transient Modified mRNA Encoding Myc and Cyclin T1 Triggers Adult Heart Muscle Regeneration (+10% Pump Output)",
+        category: "ai_biotech",
+        summary:
+          "Localized short-acting mRNA reawakened adult cardiomyocytes after myocardial injury in mice, increasing blood pumped per heartbeat by ~10% and limiting rigid post-infarction scar remodeling.",
+        sourceUrl: "https://doi.org/10.1038/s44161-026-00910-7",
+        sourceLabel: "Nature Cardiovascular Research (Nov 2026)",
+        delta99thLevYears: -0.012,
+        deltaPoA99th: -0.0006,
+        deltaPoA80th: -0.0004,
+      },
+      {
+        id: "bt-outpace-02-4",
+        title: "MIT 72-Human Nighttime EEG-fMRI Maps Age-Related Loss of Deep-Sleep Cerebrospinal Fluid Clearance Waves",
+        category: "biomarker_clock",
+        summary:
+          "Simultaneous EEG-fMRI in 31 younger (18–39) and 41 older (60–83) healthy adults linked weakened deep-sleep CSF waste clearance to lower slow-wave power and blunted cerebrovascular reactivity (r = 0.44), while revealing resilient older brains that retain youthful wash waves.",
+        sourceUrl: "https://doi.org/10.1038/s43587-026-01270-4",
+        sourceLabel: "Nature Aging (Nov 2026)",
+        delta99thLevYears: -0.006,
+        deltaPoA99th: -0.0005,
+        deltaPoA80th: -0.0004,
+      },
+      {
+        id: "bt-outpace-02-5",
+        title: "Gradual Direct Reprogramming Resets 80-Year-Old Human Blood Precursors to Neural Stem Cells Reading Under 20",
+        category: "ai_biotech",
+        summary:
+          "Direct conversion across 15 human donors (aged 0 to 101) using SOX2 and c-MYC bypassed embryonic pluripotency and unwound roughly 60 years of epigenetic clock age steadily over 50 to 100+ days.",
+        sourceUrl: "https://doi.org/10.1111/acel.70751",
+        sourceLabel: "Aging Cell (Oct 2026)",
+        delta99thLevYears: -0.012,
+        deltaPoA99th: -0.0004,
+        deltaPoA80th: -0.0002,
+      },
+    ],
+    kpiUpdates: [
+      {
+        id: "kpi-cellular-reprogramming",
+        annualVelocityPct: 35.0,
+        displayValue: "OSK + SRSF1 + Direct iNSC",
+        trendMagnitude: "SRSF1 +14% lifespan; 80yo→<20yo direct neural reset",
+        lastUpdated: "2026-11-19",
+      },
+      {
+        id: "kpi-senolytics-clinical",
+        annualVelocityPct: 28.5,
+        displayValue: "Phase 2 + Cysteine Senolysis",
+        trendMagnitude: "Oral vanadyl sulfate +7.4% mouse median lifespan",
+        lastUpdated: "2026-11-19",
+      },
+      {
+        id: "kpi-gene-therapies",
+        annualVelocityPct: 32.0,
+        displayValue: "28 Approved + Cardiac mRNA",
+        trendMagnitude: "Transient Myc+Cyclin T1 mRNA boosts heart output +10%",
+        lastUpdated: "2026-11-19",
+      },
+      {
+        id: "kpi-neuro-glial-rejuvenation",
+        annualVelocityPct: 26.0,
+        displayValue: "Human Sleep CSF & Glial Rescue",
+        trendMagnitude: "MIT 72-human EEG-fMRI maps sleep vascular-CSF clearance",
+        lastUpdated: "2026-11-19",
+      },
+    ],
+    netWeeklyDelta: {
+      days99thLevShift: -24,
+      days80thLevShift: -15,
+      poa99thShift: -0.0031,
+      poa80thShift: -0.002,
+    },
+  },
+  {
     id: "pulse-2026-outpace-01",
     weekOf: "2026-11-05",
     issueLabel: "Outpace Aging • Edition #1 (Nov 5, 2026)",
